@@ -1,0 +1,74 @@
+<html>
+<head>
+    <style>
+    .hidden {
+        display: none;
+    }
+    </style>
+    <script>
+    var myModule;
+    var wasmBinary
+    
+    var imports = {
+        foo: {bar: alert}, // "import" the alert method
+        js: {_: function(x) {console.log('haha you wanted to alert ' + x)}} // "import" the alert method
+    };
+    
+    function loadModule() {
+        // read binary file
+        var wasmFile = document.getElementById("wasmBinary").files[0];
+        
+        // create a reader object
+        var reader = new FileReader();
+        // on success
+        reader.onload = function (e) {
+            // save the result ArrayBuffer
+            wasmBinary = e.target.result;
+            // display success in the console
+            console.log('Successfully read file %d bytes', wasmBinary.byteLength);
+            // init the module
+            myModule = new WebAssembly.Instance(new WebAssembly.Module(wasmBinary), imports);
+            // display the section for testing the module
+            document.getElementById("add").className = "";
+            return false;
+        };
+        // on error
+        reader.onerror = function (e) {
+            // display error in the console
+            console.error('An error reading the file occured');
+        };
+        // read the whole file into an ArrayBuffer
+        reader.readAsArrayBuffer(wasmFile);
+        // do not refresh the page
+        return false;
+    }
+    function runModule() {
+        // get first argument
+        var arg1 = parseInt(document.getElementById("arg1").value);
+        // get second argument
+        var arg2 = parseInt(document.getElementById("arg2").value);
+        // caluclate the addition
+        var result = myModule.exports.add(arg1, arg2);
+        // display the result
+        document.getElementById("result").innerText = result;
+    }
+    </script>
+    <script src="polyfill-prototype-1/jslib/load-wasm.js"></script>
+</head>
+<body>
+    <h1>Upload a WebAssembly module</h1>
+    <input type="file" id="wasmBinary" name="wasmBinary"  />
+    <input type="submit" value="Load Module" onclick="loadModule()" />
+    <div id="add" class="hidden" style="display:hidden">
+        <h2>Module Loaded</h2>
+        <p>Test the functionality here</p>
+        <div>
+            <input id="arg1" name="arg1" size="7" />
+            <span>+</span>
+            <input id="arg2" name="arg2" size="7" />
+            <input type="submit" value="=" onclick="runModule()" />
+            <span id="result"></span>
+        </div>
+    </div>
+</body>
+</html>
