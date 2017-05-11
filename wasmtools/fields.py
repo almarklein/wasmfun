@@ -1,15 +1,26 @@
 """
-Tools for dealing with WASM in Python
+The field classes to represent a WASM program.
 """
 
-import re
-import os
 from io import BytesIO
 from struct import pack as spack
 
+from ._opcodes import OPCODES
 
-endtoken = re.compile(r'[\ \)]')
-skipws = re.compile(r'\S')
+
+LANG_TYPES = {
+    'i32': b'\x7f',
+    'i64': b'\x7e',
+    'f32': b'\x7d',
+    'f64': b'\x7c',
+    'anyfunc': b'\x70',
+    'func': b'\x60',
+    'block': b'\x40',  # pseudo type for representing an empty block_type
+    }
+
+
+def packf64(x):
+    return spack('<d', x)
 
 
 def packu32(x):
@@ -19,6 +30,12 @@ def packu32(x):
 def packstr(x):
     bb = x.encode('utf-8')
     return packvu32(len(bb)) + bb
+
+
+def packvs64(x):
+    bb = signed_leb128_encode(x)
+    assert len(bb) <= 8
+    return bb
 
 
 def packvu32(x):
@@ -39,6 +56,24 @@ def packvu1(x):
     return bb
 
 
+def signed_leb128_encode(value):
+    bb = []
+    if value < 0:
+        unsignedRefValue = (1 - value) * 2
+    else:
+        unsignedRefValue = value * 2
+    while True:
+        byte = value & 0x7F
+        value >>= 7
+        unsignedRefValue >>= 7
+        if unsignedRefValue != 0:
+            byte = byte | 0x80
+        bb.append(byte)
+        if unsignedRefValue == 0:
+            break
+    return bytes(bb)
+
+
 def unsigned_leb128_encode(value):
     bb = []  # ints, really
     while True:
@@ -50,118 +85,6 @@ def unsigned_leb128_encode(value):
         if value == 0:
             break
     return bytes(bb)
-
-
-LANG_TYPES = {
-    'i32': b'\x7f',
-    'i64': b'\x7e',
-    'f32': b'\x7d',
-    'f64': b'\x7c',
-    'anyfunc': b'\x70',
-    'func': b'\x60',
-    'block': b'\x40',  # pseudo type for representing an empty block_type
-    }
-
-# Ignored 32bit opcodes (for now)
-OPCODES = {
-    'unreachable':0x00,
-    'nop':0x01,
-    'block':0x02,
-    'loop':0x03,
-    'if':0x04,
-    'else':0x05,
-    'end':0x0b,
-    'br':0x0c,
-    'br_if':0x0d,
-    'br_table':0x0e,
-    'return':0x0f,
-    
-    'call':0x10,
-    'call_indirect':0x11,
-    
-    'drop':0x1a,
-    'select':0x1b,
-    
-    'get_local':0x20,
-    'set_local':0x21,
-    'tee_local':0x22,
-    'get_global':0x23,
-    'set_global':0x24,
-    
-    'i64.load':0x29,
-    'f64.load':0x2b,
-    'i64.load8_s':0x30,
-    'i64.load8_u':0x31,
-    'i64.load16_s':0x32,
-    'i64.load16_u':0x33,
-    'i64.load32_s':0x34,
-    'i64.load32_u':0x35,
-    'i64.store':0x37,
-    'f64.store':0x39,
-    'current_memory':0x3f,
-    'grow_memory':0x40,
-    
-    'i64.const':0x42,
-    'f64.const':0x44,
-    
-    'i64.eqz':0x50,
-    'i64.eq':0x51,
-    'i64.ne':0x52,
-    'i64.lt_s':0x53,
-    'i64.lt_u':0x54,
-    'i64.gt_s':0x55,
-    'i64.gt_u':0x56,
-    'i64.le_s':0x57,
-    'i64.le_u':0x58,
-    'i64.ge_s':0x59,
-    'i64.ge_u':0x5a,
-    'f64.eq':0x61,
-    'f64.ne':0x62,
-    'f64.lt':0x63,
-    'f64.gt':0x64,
-    'f64.le':0x65,
-    'f64.ge':0x66,
-    
-    'i64.clz':0x79,
-    'i64.ctz':0x7a,
-    'i64.popcnt':0x7b,
-    'i64.add':0x7c,
-    'i64.sub':0x7d,
-    'i64.mul':0x7e,
-    'i64.div_s':0x7f,
-    'i64.div_u':0x80,
-    'i64.rem_s':0x81,
-    'i64.rem_u':0x82,
-    'i64.and':0x83,
-    'i64.or':0x84,
-    'i64.xor':0x85,
-    'i64.shl':0x86,
-    'i64.shr_s':0x87,
-    'i64.shr_u':0x88,
-    'i64.rotl':0x89,
-    'i64.rotr':0x8a,
-    'f64.abs':0x99,
-    'f64.neg':0x9a,
-    'f64.ceil':0x9b,
-    'f64.floor':0x9c,
-    'f64.trunc':0x9d,
-    'f64.nearest':0x9e,
-    'f64.sqrt':0x9f,
-    'f64.add':0xa0,
-    'f64.sub':0xa1,
-    'f64.mul':0xa2,
-    'f64.div':0xa3,
-    'f64.min':0xa4,
-    'f64.max':0xa5,
-    'f64.copysign':0xa6,
-    
-    'i64.trunc_s/f64':0xb0,
-    'i64.trunc_u/f64':0xb1,
-    'f64.convert_s/i64':0xb9,
-    'f64.convert_u/i64':0xba,
-    'i64.reinterpret/f64':0xbd,
-    'f64.reinterpret/i64':0xbf,
-    }
 
 
 class Field:
@@ -431,7 +354,9 @@ class Import(Field):
 
 class Export(Field):
     """ Export an object defined in this module. The index is the index
-    in the corresponding index space (e.g. the function-section for functions.
+    in the corresponding index space (e.g. for functions this is the
+    function index space which is basically the concatenation of
+    functions in the import and type sections).
     """
     
     __slots__ = ['name', 'kind', 'index']
@@ -555,121 +480,20 @@ class Instruction(Field):
         for arg in self.args:
             if isinstance(arg, Field):
                 pass # arg.to_file(f)
-            elif isinstance(arg, int):
-                f.write(packvu32(arg))
+            elif isinstance(arg, (float, int)):
+                if self.type.startswith('f64.'):
+                    f.write(packf64(arg))
+                elif self.type.startswith('i64.'):
+                    f.write(packvs64(arg))
+                elif self.type.startswith('i') or self.type.startswith('f'):
+                    raise RuntimeError('Únsupported instruction arg for %s' % self.type)
+                else:
+                    f.write(packvu32(arg))
             else:
                 raise TypeError('Unknown instruction arg %r' % arg)  # todo: e.g. constants
 
 
-## API
 
-
-def parse(text):
-    """ Parse WASM text code (.wat) to an internal tree representation.
-    """
-    
-    # Strip comments and whitespace
-    lines = text.splitlines()
-    lines = [line.split(';;')[0].strip() for line in lines]
-    lines = [line for line in lines if line]
-    text = ' '.join(lines)
-    
-    assert text.startswith('(')
-    i = endtoken.search(text, 1).start()
-    root = Field(text[1:i])
-    stack = [root]
-    
-    while True:
-        if text[i] == ' ':
-            i += 1
-            continue  # extra ws
-        
-        elif text[i] == '(':
-            # Open new Field
-            i2 = endtoken.search(text, i + 1).start()
-            field = Field(text[i+1:i2])
-            stack[-1].args.append(field)
-            stack.append(field)
-            i = i2
-        
-        elif text[i] == ')':
-            # Close a field
-            popped = stack.pop(-1)
-            if not stack:
-                assert i == len(text) - 1
-                break
-            else:
-                i += 1
-        else:
-            # Add arg to field
-            i2 = endtoken.search(text, i).start()
-            stack[-1].args.append(text[i:i2])
-            i = i2
-    
-    # todo: could return list of fields if we allow parsing snippets (i.e. not modules)
-    return root
-
-
-def inspect(bb, offset):
-    """ For debugging.
-    """
-    start = max(0, offset - 16)
-    end = offset + 16
-    bytes2show = bb[start:end]
-    bytes2skip = bb[start:offset]
-    text_offset = len(repr(bytes2skip))
-    print(bytes2show)
-    print('|'.rjust(text_offset))
-
-
-def hexdump(bb):
-    i = 0
-    line = 0
-    while i < len(bb):
-        ints = [hex(j)[2:].rjust(2, '0') for j in bb[i:i+16]]
-        print(str(line).rjust(8, '0'), *ints, sep=' ')
-        i += 16
-        line += 1
-
-
-if __name__ == '__main__':
-    
-    code = """
-    (module ;; start the module
-    (import "foo" "bar") ;; import foo.bar
-    (func $bar (call_import 0 )) ;; map bar()
-    (export "f" 0) ;; export bar()
-    )
-    """
-    
-    hex_alert = """00 61 73 6d 01 00 00 00  01 08 02 60 01 7f 00 60
-                   00 00 02 08 01 02 6a 73  01 5f 00 00 03 02 01 01
-                   08 01 01 0a 09 01 07 00  41 b9 0a 10 00 0b"""
-    hex_alert = bytes([int(x, 16) for x in hex_alert.split(' ') if x])
-    
-    root = Module(
-        TypeSection(
-            FunctionSig(['f64']),  # import alert func
-            FunctionSig(['f64', 'f64'], ['f64']), # add func
-            ),
-        ImportSection(
-            Import('foo', 'bar', 'function', 0),
-            ),
-        FunctionSection(1),
-        ExportSection(
-            Export('add', 'function', 0),
-            ),
-        CodeSection(
-            FunctionDef([], 
-                Instruction('f64.add', Instruction('get_local', 0), Instruction('get_local', 1)),
-                )
-            ),
-        )
-    
-    print(root)
-    root.show()
-    bb = root.to_binary()
-    print(bb)
-    hexdump(bb)
-    with open(os.path.dirname(__file__) + '/test.wasm', 'wb') as f:
-        f.write(bb)
+# Collect field classes
+__all__ = [name for name in globals()
+           if isinstance(globals()[name], type) and issubclass(globals()[name], Field)]
