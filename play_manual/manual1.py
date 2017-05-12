@@ -6,8 +6,6 @@ as well as importing functions from the host environment and using then
 in WASM.
 """
 
-import os
-
 from wasmtools import *
 
 
