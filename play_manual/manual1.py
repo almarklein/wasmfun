@@ -34,15 +34,14 @@ root = Module(
             Instruction('get_local', 0), Instruction('get_local', 1), Instruction('f64.add'),
             ),
         FunctionDef(['f64'],  # start func
-            Instruction('loop', 'emptyblock',
+            ('loop', 'emptyblock'),
                 # write iter
-                Instruction('get_local', 0), Instruction('call', 1),
+                ('get_local', 0), ('call', 1),
                 # Increase iter
-                Instruction('f64.const', 1), Instruction('get_local', 0), Instruction('f64.add'),
-                Instruction('tee_local', 0), Instruction('f64.const', 10),
-                Instruction('f64.lt'), Instruction('br_if', 0),
-                Instruction('end'),
-                ),
+                ('f64.const', 1), ('get_local', 0), ('f64.add'),
+                ('tee_local', 0), ('f64.const', 10),
+                ('f64.lt'), ('br_if', 0),
+                ('end'),
             ),
         ),
     )

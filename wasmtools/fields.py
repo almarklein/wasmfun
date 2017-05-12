@@ -418,7 +418,8 @@ class FunctionSig(Field):
 
 
 class FunctionDef(Field):
-    """ The definition (of the body) of a function.
+    """ The definition (of the body) of a function. The instructions can be
+    Instruction instances or strings/tuples describing the instruction.
     """
     
     __slots__ = ['locals', 'instructions']
@@ -427,9 +428,14 @@ class FunctionDef(Field):
         for loc in locals:
             assert isinstance(loc, str)  # valuetype
         self.locals = locals
+        self.instructions = []
         for instruction in instructions:
+            if isinstance(instruction, str):
+                instruction = Instruction(instruction)
+            elif isinstance(instruction, tuple):
+                instruction = Instruction(*instruction)
             assert isinstance(instruction, Instruction)
-        self.instructions = instructions
+            self.instructions.append(instruction)
     
     def to_text(self):
         s = 'FunctionDef(' + str(list(self.locals)) + '\n'
