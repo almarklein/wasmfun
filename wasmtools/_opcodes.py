@@ -42,7 +42,9 @@ OPCODES = {
     'current_memory':0x3f,
     'grow_memory':0x40,
     
+    'i32.const':0x41,
     'i64.const':0x42,
+    'f32.const':0x43,
     'f64.const':0x44,
     
     'i64.eqz':0x50,

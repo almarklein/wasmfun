@@ -26,15 +26,23 @@ root = Module(
     ExportSection(
         Export('add', 'function', 2),
         ),
+    StartSection(3),
     CodeSection(
         FunctionDef([], 
-            Instruction('call', 1, Instruction('f64.const', 42),),  # write 42
-            # Instruction('call', 0, Instruction('f64.const', 1337),),  # alert 1337
-            Instruction('f64.add', Instruction('get_local', 0), Instruction('get_local', 1)),
+            Instruction('f64.const', 42), Instruction('call', 1),  # write 42
+            # Instruction('f64.const', 1337), Instruction('call', 0),  # alert 1337
+            Instruction('get_local', 0), Instruction('get_local', 1), Instruction('f64.add'),
             ),
-        FunctionDef([],  # start func
-            Instruction('f64.const', 1337),
-            Instruction('call', 1),  # write 1337
+        FunctionDef(['f64'],  # start func
+            Instruction('loop', 'emptyblock',
+                # write iter
+                Instruction('get_local', 0), Instruction('call', 1),
+                # Increase iter
+                Instruction('f64.const', 1), Instruction('get_local', 0), Instruction('f64.add'),
+                Instruction('tee_local', 0), Instruction('f64.const', 10),
+                Instruction('f64.lt'), Instruction('br_if', 0),
+                Instruction('end'),
+                ),
             ),
         ),
     )

@@ -15,7 +15,7 @@ LANG_TYPES = {
     'f64': b'\x7c',
     'anyfunc': b'\x70',
     'func': b'\x60',
-    'block': b'\x40',  # pseudo type for representing an empty block_type
+    'emptyblock': b'\x40',  # pseudo type for representing an empty block_type
     }
 
 
@@ -37,6 +37,11 @@ def packvs64(x):
     assert len(bb) <= 8
     return bb
 
+
+def packvs32(x):
+    bb = signed_leb128_encode(x)
+    assert len(bb) <= 4
+    return bb
 
 def packvu32(x):
     bb = unsigned_leb128_encode(x)
@@ -286,9 +291,21 @@ class ExportSection(Section):
     
 
 class StartSection(Section):
+    """ Provide the index of the function to call at init-time. The func must
+    have zero params and return values.
+    """
     
-    __slots__ = []
+    __slots__ = ['index']
     id = 8
+    
+    def __init__(self, index):
+        self.index = index
+    
+    def to_text(self):
+        return 'StartSection(' + str(self.index) + ')'
+    
+    def get_binary_section(self, f):
+        f.write(packvu32(self.index))
 
 
 class ElementSection(Section):
@@ -408,7 +425,7 @@ class FunctionDef(Field):
     
     def __init__(self, locals, *instructions):
         for loc in locals:
-            assert isinstance(local, str)  # valuetype
+            assert isinstance(loc, str)  # valuetype
         self.locals = locals
         for instruction in instructions:
             assert isinstance(instruction, Instruction)
@@ -422,8 +439,13 @@ class FunctionDef(Field):
     
     def to_file(self, f):
         
-        # todo: Collect locals by type
+        # Collect locals by type
         local_entries = []  # list of (count, type) tuples
+        for loc_type in self.locals:
+            if local_entries and local_entries[-1] == loc_type:
+                local_entries[-1] = local_entries[-1][0] + 1, loc_type
+            else:
+                local_entries.append((1, loc_type))
         
         f3 = BytesIO()
         f3.write(packvu32(len(local_entries)))  # number of local-entries in this func
@@ -439,14 +461,22 @@ class FunctionDef(Field):
 
 
 class Instruction(Field):
-    """ Class for all instruction fields.
+    """ Class for all instruction fields. Can have nested instructions, which
+    really just come after it (so it only allows semantic sugar for blocks and loops.
     """
     
-    __slots__ = ['type', 'args']
+    __slots__ = ['type', 'instructions', 'args']
     
     def __init__(self, type, *args):
         self.type = type.lower()
-        self.args = args
+        self.args = []
+        self.instructions = []
+        for arg in args:
+            if isinstance(arg, Field):
+                assert isinstance(arg, Instruction)
+                self.instructions.append(arg)
+            else:
+                self.args.append(arg)
     
     def __repr__(self):
         return '<Instruction %s>' % self.type
@@ -462,36 +492,30 @@ class Instruction(Field):
         if self.type not in OPCODES:
             raise TypeError('Unknown instruction %r' % self.type)
         
-        # todo: I think that instructions either have subinstructions or data, not both, so this could be optimized
-        
-        # Sub-instructions come before (they manipulate the stack)
-        for arg in self.args:
-            if isinstance(arg, Field):
-                arg.to_file(f)
-            elif isinstance(arg, int):
-                pass  # f.write(packvu32(arg))
-            else:
-                raise TypeError('Unknown instruction arg %r' % arg)  # todo: e.g. constants
-        
         # Our instruction
         f.write(bytes([OPCODES[self.type]]))
         
         # Data comes after
         for arg in self.args:
-            if isinstance(arg, Field):
-                pass # arg.to_file(f)
-            elif isinstance(arg, (float, int)):
+            if isinstance(arg, (float, int)):
                 if self.type.startswith('f64.'):
                     f.write(packf64(arg))
                 elif self.type.startswith('i64.'):
                     f.write(packvs64(arg))
+                elif self.type.startswith('i32.'):
+                    f.write(packvs32(arg))
                 elif self.type.startswith('i') or self.type.startswith('f'):
-                    raise RuntimeError('Únsupported instruction arg for %s' % self.type)
+                    raise RuntimeError('Unsupported instruction arg for %s' % self.type)
                 else:
                     f.write(packvu32(arg))
+            elif isinstance(arg, str):
+                f.write(LANG_TYPES[arg])
             else:
                 raise TypeError('Unknown instruction arg %r' % arg)  # todo: e.g. constants
-
+        
+        # Nested instructions
+        for instruction in self.instructions:
+            instruction.to_file(f)
 
 
 # Collect field classes
