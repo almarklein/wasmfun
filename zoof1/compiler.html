@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+</head>
+<body>
+
+
+<script>
+
+// WASM_SPLIT_PLACEHOLDER
+wasm_data = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 8, 2, 96, 1, 124, 0, 96, 0, 0, 2, 19, 1, 2, 106, 115, 12, 115, 116, 100, 111, 117, 116, 95, 119, 114, 105, 116, 101, 0, 0, 3, 2, 1, 1, 7, 1, 0, 8, 1, 1, 10, 101, 1, 99, 2, 1, 124, 1, 124, 68, 0, 0, 0, 0, 0, 0, 0, 64, 68, 0, 0, 0, 0, 0, 0, 8, 64, 68, 0, 0, 0, 0, 0, 0, 240, 63, 160, 160, 33, 0, 68, 0, 0, 0, 0, 0, 0, 34, 64, 68, 0, 0, 0, 0, 0, 0, 8, 64, 68, 0, 0, 0, 0, 0, 0, 0, 64, 162, 161, 68, 0, 0, 0, 0, 0, 0, 0, 64, 160, 33, 1, 32, 1, 68, 0, 0, 0, 0, 0, 0, 63, 64, 160, 33, 1, 32, 0, 32, 1, 160, 16, 0, 11]);
+// WASM_SPLIT_PLACEHOLDER
+
+var imports = {js: {alert: alert, stdout_write: console.log}};
+
+function say(x) {
+    el = document.getElementById('status');
+    el.innerHTML += '<br>' + x;
+}
+
+window.onload = function() {
+    say('Compiling wasm module')
+    
+    module = new WebAssembly.Instance(new WebAssembly.Module(wasm_data), imports);
+    
+    say('Using wasm module')
+    say('exports: ' + Object.keys(module.exports));
+}
+
+
+</script>
+
+<div id='status' />
+
+</body>
+</html>

@@ -27,6 +27,7 @@ class Expr:
     * assign: target-exp (identifier or tuple), expression
     * if: expr for test, body-block, else-block
     * identifier: the name
+    * call: expression (often an identifier), arg1-expr, arg2-expr, ...
     """
     
     KINDS = ['block', 'assign', 'if', 'for', 'do', 'identifier', 'call',
@@ -79,10 +80,11 @@ def _resolve_expressions(expression_chain):
                 if i == 0:
                     # unary
                     assert isinstance(chain[i+1], Expr)
-                    e = Expr('call', funcname, chain[i+1])
+                    e = Expr('call', Expr('identifier', funcname), chain[i+1])
                     chain = [e] + chain[2:]
                     i += 1
-                elif funcname in multiops and chain[i-1].kind == 'call' and chain[i-1].args[0] == funcname:
+                elif (funcname in multiops and chain[i-1].kind == 'call' and
+                      chain[i-1].args[0].kind == 'identifier' and chain[i-1].args[0].args[0] == funcname):
                     # binary +
                     chain[i-1].args.append(chain[i+1])
                     chain = chain[:i] + chain[i+2:]
@@ -91,7 +93,7 @@ def _resolve_expressions(expression_chain):
                     # binary
                     assert isinstance(chain[i-1], Expr)
                     assert isinstance(chain[i+1], Expr)
-                    e = Expr('call', funcname, chain[i-1], chain[i+1])
+                    e = Expr('call', Expr('identifier', funcname), chain[i-1], chain[i+1])
                     chain = chain[:i-1] + [e] + chain[i+2:]
                     i += 0
             else:
@@ -161,8 +163,12 @@ def parse(tokens):
             if exp.kind == 'assign':  # also for import
                 if len(expressions) != 1:
                     raise ZoofSyntaxError(token, 'Assign must have one expression to its right.')
-                exp.args.append(expressions[0])
+                if len(exp.args) == 2 and exp.args[1].kind == 'call':  # += or other
+                    exp.args[1].args.append(expressions[0])
+                else:
+                    exp.args.append(expressions[0])
                 pop()
+                finish_exp()
         
         elif token.type == TYPES.assign:
             # Assignment
@@ -172,6 +178,10 @@ def parse(tokens):
                 raise ZoofSyntaxError(token, 'Assignment needs something to its left.')
             elif expression_chain[0].kind == 'identifier':
                 exp = Expr('assign', expression_chain[0])
+                if token.text != '=':
+                    funcname = opcallmap[token.text[0]]
+                    subexp = Expr('call', Expr('identifier', funcname), expression_chain[0])
+                    exp.args.append(subexp)
                 expression_chain[0] = exp  # end arg is given in endofstatement handler
                 push(exp)
             else:
@@ -312,7 +322,8 @@ if __name__ == '__main__':
     
     EXAMPLE = """
     # asd
-    a = print(2+3)
+    a = 3
+    a += 2
     """
    
     tokens = tokenize(EXAMPLE)
