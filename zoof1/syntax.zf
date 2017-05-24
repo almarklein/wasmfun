@@ -1,0 +1,152 @@
+"""
+Exeriment with what Zoof's syntax could look like.
+
+Kinds of blocks:
+* if
+* for, while
+* comprehensions (make these just for-loops inside a list literal)
+* try catch
+* let-blocks
+* functions  (hard local scope in Julia)
+* type defs  (hard local scope in Julia)
+* macro defs
+"""
+
+# The hash char is used for comments. We could do Julia-style multiline comments
+# but I don't really see the need.
+
+## Assignments
+
+# classic
+foo = 3
+bar = foo + 39
+
+# use keywords for assignments? way too verbose
+set foo to 3
+set bar to foo + 39
+
+# keywords shorter form, but still feels weird
+assign foo 3
+assign bar foo + 39
+
+
+x = do
+    a = 3
+    b = 4
+    a + b
+done  # x == 7
+
+x = do a = 3; b = 4; a + b done
+
+
+## imports
+
+import foo
+import foo use bar
+import foo use *
+
+from foo use bar, spam as eggs
+
+
+
+## functions
+# def as in Python is weird
+# function is too long
+# func is perfect
+
+func foo()
+    ...
+end
+
+f = func (x) x^2 end  # Anonymous
+
+x.sort(key = func (x) -x end)  # make end optional in cases like this?
+
+
+## Control flow
+
+# The full form
+if ... do
+   ...
+elseif ... do
+   ...
+done
+
+# do is optional in multiline
+if ...
+   ...
+elseif ...
+   ...
+done
+
+# end is optional in single-line
+x = if a < 9 do 4 else 5
+
+
+# Maybe allow/use "use" instead of "do"
+x = if a < 3 use 4 else 5
+
+
+## Loops
+
+# The full form
+for ... do
+    ...
+end
+
+# The single line form (end is optional)
+for ... do ...
+
+# Comprehensions
+squared_nums = [for i in 1:10 do i^2 end]
+even_nums = [for i in 1:10 do
+             if i%2 do i end end]
+
+# same for while
+
+## Try except
+
+try .... catch SomeError ... end
+
+
+## Context manager
+
+with asdasd() as f do
+    asdas
+end
+
+
+## Typedefs
+
+typedef MyType(SuperType)
+
+end
+
+
+## Match end
+
+# For large nested code, allow writing the matching keyword behind
+# "end". The parser will verify the match and produce a syntaxerror if
+# its wrong.
+
+func foo()
+    for i in 1:10 do
+        if i < 4 do
+            ...
+        else
+            ...
+        end
+    end for
+end func
+    
+      
+
+
+
+## Scripts
+# functions with a special name get automatically called when run as script.
+# also have functions that get automatically called when the module initializes? 
+
+func main()
+    ...
+end
