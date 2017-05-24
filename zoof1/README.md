@@ -9,6 +9,9 @@ been fully decided on. The only value will be float at first.
 
 ## Next steps / dreaming out loud
 
+* If-expressions, for-loops, etc.
+* Functions
+* Modules
 * More types like Text, Array and Int.
 * A (initially simple) type system for custom types.
 * Make it self hosting (do the tokenization, parsing and compiling in

@@ -2,7 +2,7 @@
 Getting the hang of WASM - generate WASM from Python
 
 This is basically me fooling around with WASM to get a feel for it and seeing
-if/how I can put it to actual use some day.
+if/how I can put it to actual use.
 
 
 ## What is WASM?
@@ -36,14 +36,14 @@ well-defined and faster (in terms of load time and run-time performance).
 But that's not why I find it so interesting. I'm looking at WASM as a
 compilation target for dynamic languages, like Python, or perhaps new
 languages. Because WASM must be able to run in the browser, it has some
-interesting features w.r.t. easy of distribution, safety, etc.
+interesting features w.r.t. ease of distribution, safety, etc.
 
 It's important to realize that although WASM is designed to be able to
 run in the browser, it has no dependencies on anything "web". Running on 
 the desktop, or mobile devices, or ... is an equally important goal of WASM.
 This means that any language compiled to WASM can basically run anywhere.
-This means that any language compiled to WASM can basically run anywhere. (I
-repeated that sentence on purpose because its really a big thing.)
+This means that any language compiled to WASM can basically run anywhere. I
+intentionally repeated that sentence because its really a big thing!
 Most modern browsers already support WASM, and there are already projects
 that can run it on desktop too, or e.g. in the JVM.
 
@@ -62,13 +62,26 @@ capabilities. Basically, debug like you do with Python, with a language that's
 nearly as fast as C.
 
 
-## The approach that I took here
+## In this repo
 
+**wasmtools**
 I (partly) implemented an internal representation of (binary) WASM that
 can be exported to a .wasm file. One can write WASM directly (in Python)
 using the classes of this internal representation. Or one can use it
 as a compilation target (i.e. use it as the target AST) for new/toy
 languages.
+
+**play_manual**
+Using the above tool, you can manually write apps in "raw WASM". A bit
+tedious, but it works!
+
+**brainfuck**
+A compiler of brainfuck to WASM. TODO
+
+**zoof1**
+An experimental language with a very frienly syntax that compiles to WASM.
+The parsing and compiling is implemented in Python, but it could eventually
+be self-hosting, which is when it starts to be come real interesting.
 
 
 ## Links

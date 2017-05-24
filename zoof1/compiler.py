@@ -134,7 +134,7 @@ def _compile_call(expr, ctx, push_stack=True):
         if nargs != 1:
             raise RuntimeError('Print needs exactly one argument')
         _compile_expr(expr.args[1], ctx, True)
-        ii = [('call', 0)]
+        ii = [('call', PRINT_FUNC_ID)]
     else:
         raise RuntimeError('Unknown function %r' % name)
     ctx.instructions.extend(ii)
