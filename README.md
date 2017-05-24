@@ -64,24 +64,28 @@ nearly as fast as C.
 
 ## In this repo
 
-**wasmtools**
+**wasmtools:**
 I (partly) implemented an internal representation of (binary) WASM that
 can be exported to a .wasm file. One can write WASM directly (in Python)
 using the classes of this internal representation. Or one can use it
 as a compilation target (i.e. use it as the target AST) for new/toy
 languages.
 
-**play_manual**
+**play_manual:**
 Using the above tool, you can manually write apps in "raw WASM". A bit
 tedious, but it works!
+
+**play_calc:**
+Implementation of a *real* simple "programming language" that basically acts
+like a calculator, which is compiled to WASM.
 
 **brainfuck**
 A compiler of brainfuck to WASM. TODO
 
-**zoof1**
-An experimental language with a very frienly syntax that compiles to WASM.
+**zoof1:**
+An experimental language with a very friendly syntax that compiles to WASM.
 The parsing and compiling is implemented in Python, but it could eventually
-be self-hosting, which is when it starts to be come real interesting.
+be self-hosting, which is when it starts to be come real interesting ...
 
 
 ## Links
