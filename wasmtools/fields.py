@@ -260,9 +260,31 @@ class TableSection(Section):
 
 
 class MemorySection(Section):
-    
+    """ Declares initial (and max) sizes of linear memory. Only one default
+    memory can exist in the MVP.
+    """
     __slots__ = []
     id = 5
+    
+    def __init__(self, *entries):
+        assert len(entries) == 1   # in MVP
+        self.entries = entries
+        
+    def to_text(self):
+        return 'MemorySection(' + ', '.join([str(i) for i in self.entries]) + ')'
+    
+    def get_binary_section(self, f):
+        f.write(packvu32(len(self.entries)))
+        for entrie in self.entries:
+            if isinstance(entrie, int):
+                entrie = (entrie, )
+            if len(entrie) == 1:
+                f.write(packvu1(0))
+                f.write(packvu32(entrie[0]))
+            else:
+                f.write(packvu1(1))
+                f.write(packvu32(entrie[0]))
+                f.write(packvu32(entrie[1]))
 
 
 class GlobalSection(Section):
@@ -334,9 +356,31 @@ class CodeSection(Section):
 
 
 class DataSection(Section):
+    """ Initialize the linear memory.
+    Note that the initial contents of linear memory are zero.
+    """
     
     __slots__ = []
     id = 11
+    
+    def __init__(self, *chunks):
+        self.chunks = []
+        for chunk in chunks:
+            assert len(chunk) == 3  # index, offset, bytes
+            assert chunk[0] == 0  # always 0 in MVP
+            assert isinstance(chunk[2], bytes)
+    
+    def to_text(self):
+        chunkinfo = [(chunk[0], chunk[1], len(chunk[2])) for chunk in self.chunks]
+        return 'DataSection(' + ', '.join([str(i) for i in chunkinfo]) + ')'
+    
+    def get_binary_section(self, f):
+        f.write(packvu32(len(self.chunks)))
+        for chunk in self.chunks:
+            f.write(packvu32(chunk[0]))
+            #ff.write(packvu32(chunk[1]))
+            Instruction('i32.const', chunk[1]).to_file(f)  # todo: is this right?
+            f.write(packvu32(len(chunk[2])))
 
 
 ## Non-section fields
