@@ -60,7 +60,7 @@ class Expr:
 
 
 opcallmap = {'+': 'add', '-': 'subtract', '*': 'mult', '/': 'div',
-             '==': 'equals',
+             '==': 'equals', '>': 'gt', '<': 'lt',
              }
 
 # ops for which multiple args can be combined into a single call with > 2 args
@@ -151,8 +151,8 @@ def parse(tokens):
         e, expression_chain, expressions = stack.pop(-1)
         return e
     
-    def peek():
-        return stack[-1][0]
+    def peek(i=1):
+        return stack[-i][0]
     
     for i, token in enumerate(tokens):
         
@@ -280,21 +280,64 @@ def parse(tokens):
             kw = token.text
             
             if kw == 'if':
-                assert not pending_tokens 
-                current = Expr('if')
-                stack.append(current)
-                
+                if expression_chain:
+                    raise ZoofSyntaxError(token, 'Unexpected if-start')
+                exp = Expr('if')
+                expression_chain.append(exp)
+                push(exp)
+            
+            elif kw == 'else':
+                exp = peek()
+                if exp.kind != 'block':
+                     raise ZoofSyntaxError(token, 'Unexpected else')
+                if exp is root:
+                    raise ZoofSyntaxError(token, 'Exepected end')
+                # Handle block
+                finish_exp()
+                exp.args.extend(expressions)
+                pop()
+                # What was this block for?
+                exp = peek()
+                if exp.kind != 'if':
+                    raise ZoofSyntaxError(token, 'Can only use else in if-expression')
+                # Start a new block for the else
+                elsebody = Expr('block')
+                exp.args.append(elsebody)
+                push(elsebody)
+            
             elif kw == 'for':
-                pass
+                assert False
+            
             elif kw == 'do':
-                
-                if currrent.kind == 'if':
-                    pending_tokens 
+                exp = peek()
+                if exp.kind == 'if':
+                    # Finish test
+                    finish_exp()
+                    if not len(expressions) == 1:
+                        raise ZoofSyntaxError(token, 'If-expression requires 1 test expression')
+                    exp.args.append(expressions[0])
+                    # Prepare body
+                    body = Expr('block')
+                    exp.args.append(body)
+                    push(body)
                 else:
-                    assert False
+                    assert False, 'dont know ' + exp.kind
             
             elif kw == 'end':
-                pass
+                exp = peek()
+                if exp.kind == 'block':
+                    if exp is root:
+                        raise ZoofSyntaxError('Exepected end')
+                    # Handle block
+                    finish_exp()
+                    exp.args.extend(expressions)
+                    pop()
+                    # What was this block for?
+                    exp = peek()
+                    assert exp.kind in ('if', 'for', 'while')  # ...
+                    pop()
+                else:
+                    raise ZoofSyntaxError(token, 'Unmatched end, missing do?')
             
             else:
                 raise ZoofSyntaxError(token, 'Unexpected keyword %s' % kw)
@@ -311,6 +354,8 @@ def parse(tokens):
             raise ZoofSyntaxError(token, 'No support for %s token' % token.type)
     
     # Wrap up
+    if len(stack) > 1:
+        raise ZoofSyntaxError(token, 'Unterminated block, missing end?')
     assert len(stack) == 1
     assert not root.args
     finish_exp()
@@ -324,6 +369,12 @@ if __name__ == '__main__':
     # asd
     a = 3
     a += 2
+    if a > 2 do
+        b = 1
+    else
+        b = 3
+    end
+    
     """
    
     tokens = tokenize(EXAMPLE)

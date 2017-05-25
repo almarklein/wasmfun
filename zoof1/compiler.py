@@ -8,6 +8,14 @@ from zoof1.parser import Expr, parse
 
 from wasmtools import *
 
+# todo: eventually this should produce WASM more directly (without first going
+# through wasmtools), at least for the instructions.
+
+
+# todo: can we add line number info to expressions?
+class ZoofCompilerError(SyntaxError):
+    pass
+
 
 class Context:
     
@@ -89,6 +97,35 @@ def _compile_expr(expr, ctx, push_stack=True):
         value = float(expr.args[0])
         ctx.instructions.append(('f64.const', value))
     
+    elif expr.kind == 'if':
+        # Run test
+        _compile_expr(expr.args[0], ctx, True)
+        # Branch + body
+        if push_stack:
+            ctx.instructions.append(('if', 'f64'))
+        else:
+            ctx.instructions.append(('if', 'emptyblock'))
+        assert len(expr.args) in (2, 3)
+        if push_stack:
+            if len(expr.args) == 2:
+                raise ZoofCompilerError('A result-producing if-expression needs an else clause.')
+            if len(expr.args[1].args) == 0 or len(expr.args[2].args) == 0:
+                raise ZoofCompilerError('A result-producing if-expression needs nonempty body and else clauses')
+            for e in expr.args[1].args[:-1]:
+                _compile_expr(e, ctx, False)
+            _compile_expr(expr.args[1].args[-1], ctx, True)
+            ctx.instructions.append(('else', ))
+            for e in expr.args[2].args[:-1]:
+                _compile_expr(e, ctx, False)
+            _compile_expr(expr.args[2].args[-1], ctx, True)
+        else:
+            for e in expr.args[1].args:
+                _compile_expr(e, ctx, False)
+            if len(expr.args) == 3:
+                ctx.instructions.append(('else', ))
+                for e in expr.args[2].args:
+                    _compile_expr(e, ctx, False)
+        ctx.instructions.append(('end', ))
     else:
         raise RuntimeError('Unknown expression kind %r' % e.kind)
 
@@ -130,6 +167,20 @@ def _compile_call(expr, ctx, push_stack=True):
         if not push_stack:
             ii.append('drop')
     
+    elif name == 'gt':
+        _compile_expr(expr.args[1], ctx, True)
+        _compile_expr(expr.args[2], ctx, True)
+        ii = ['f64.gt']
+        if not push_stack:
+            ii.append('drop')
+    
+    elif name == 'lt':
+        _compile_expr(expr.args[1], ctx, True)
+        _compile_expr(expr.args[2], ctx, True)
+        ii = ['f64.lt']
+        if not push_stack:
+            ii.append('drop')
+    
     elif name == 'print':  # Provided by host
         if nargs != 1:
             raise RuntimeError('Print needs exactly one argument')
@@ -148,6 +199,18 @@ if __name__ == '__main__':
     b = 9 - 3 * 2 + 2
     b += 31
     print(a + b)
+    
+    c = 2
+    if a > 25 do
+       c = 3
+    else
+       c = 4
+    end
+    print(c)
+    
+    d = if a > 25 do 2 else 4 end
+    print(d)
+    print(if a > 25 do 20 else 40 end)
     """
    
     tokens = tokenize(EXAMPLE)
