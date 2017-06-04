@@ -2,7 +2,10 @@
 Utils for working with WASM and binary data.
 """
 
-__all__ = ['inspect_bytes_at', 'hexdump', 'insert_wasm_into_html']
+import os
+
+
+__all__ = ['inspect_bytes_at', 'hexdump', 'produce_example_html']
 
 
 def inspect_bytes_at(bb, offset):
@@ -29,18 +32,21 @@ def hexdump(bb):
         line += 1
 
 
-SPLIT_PLACEHOLDER = '\n// WASM_SPLIT_PLACEHOLDER\n'
+CODE_PLACEHOLDER = 'CODE_PLACEHOLDER'
+WASM_PLACEHOLDER = 'WASM_PLACEHOLDER'
 
-def insert_wasm_into_html(filename, wasm):
+
+def produce_example_html(filename, code, wasm):
     wasm_text = str(list(wasm))  # [0, 1, 12, ...]
     
-    with open(filename, 'rb') as f:
+    fname = os.path.basename(filename).rsplit('.', 1)[0]
+    src_filename = os.path.join(os.path.dirname(__file__), 'template.html')
+    with open(src_filename, 'rb') as f:
         html = f.read().decode()
     
-    htmlparts = html.split(SPLIT_PLACEHOLDER)
-    assert len(htmlparts) == 3
-    htmlparts[1] = 'wasm_data = new Uint8Array(' + wasm_text + ');'
-    html = SPLIT_PLACEHOLDER.join(htmlparts)
+    html = html.replace('<title></title>', '<title>%s</title>' % fname)
+    html = html.replace(CODE_PLACEHOLDER, code)
+    html = html.replace(WASM_PLACEHOLDER, 'wasm_data = new Uint8Array(' + wasm_text + ');')
     
     with open(filename, 'wb') as f:
         f.write(html.encode())

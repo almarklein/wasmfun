@@ -80,7 +80,7 @@ Implementation of a *real* simple "programming language" that basically acts
 like a calculator, which is compiled to WASM.
 
 **brainfuck**
-A compiler of brainfuck to WASM. TODO
+A compiler of brainfuck to WASM.
 
 **zoof1:**
 An experimental language with a very friendly syntax that compiles to WASM.

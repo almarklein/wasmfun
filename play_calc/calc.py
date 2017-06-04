@@ -4,7 +4,7 @@ Intended as a simple example how code can be tokenized, turned into AST
 and then translated into WASM instructions.
 """
 
-from wasmtools import *
+import wasmtools as wt
 
 
 EXAMPLE = """
@@ -92,18 +92,18 @@ def wasmify(ast):
     instructions.append(('call', 0))
     
     # Put instructions in a the main function of a WASM module
-    module = Module(
-        TypeSection(
-            FunctionSig([]),  # start func
-            FunctionSig(['f64']),  # import write func
+    module = wt.Module(
+        wt.TypeSection(
+            wt.FunctionSig([]),  # start func
+            wt.FunctionSig(['f64']),  # import write func
             ),
-        ImportSection(
-            Import('js', 'stdout_write', 'function', 1),
+        wt.ImportSection(
+            wt.Import('js', 'stdout_write', 'function', 1),
             ),
-        FunctionSection(0),
-        StartSection(1),
-        CodeSection(
-            FunctionDef([], *instructions))
+        wt.FunctionSection(0),
+        wt.StartSection(1),
+        wt.CodeSection(
+            wt.FunctionDef([], *instructions))
         )
     return module
 
@@ -113,5 +113,7 @@ def compile(text):
     """
     return wasmify(parse(tokenize(text))).to_binary()
 
-bb = compile(EXAMPLE)
-insert_wasm_into_html(__file__[:-3] + '.html', bb)
+
+if __name__ == '__main__':
+    wasm = compile(EXAMPLE)
+    wt.produce_example_html('calc1.html', EXAMPLE, wasm)

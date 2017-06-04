@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta charset="utf-8">
+</head>
+<body>
+
+
+<script>
+
+WASM_PLACEHOLDER
+
+function say(x) {
+    el = document.getElementById('status');
+    el.innerHTML += '<br>' + x;
+}
+
+var pending_str = '';
+
+function say_charcode(i) {
+    c = String.fromCharCode(i);
+    if (c == '\n') { c = '<br>'; }
+    el = document.getElementById('status');
+    el.innerHTML += c;
+}
+
+var providedfuncs = {
+    alert: alert,
+    stdout_write: say,
+    stdout_write_charcode: say_charcode,
+};
+
+
+window.onload = function() {
+    say('Compiling wasm module')
+    module_ = new WebAssembly.Module(wasm_data);
+    say('Initializing wasm module')
+    say('Result: ');
+    module = new WebAssembly.Instance(module_, {js: providedfuncs});
+}
+
+</script>
+
+
+<div style='display:flex;'>
+
+<div style='flex: 1;'>
+<h2> Code </h2>
+<pre>
+CODE_PLACEHOLDER
+</pre>
+</div>
+
+<div style='flex: 1;'>
+<h2> Output </h2>
+<div id='status' ></div>
+</div>
+
+</div>
+
+</body>
+</html>

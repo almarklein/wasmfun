@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<title>zoof1</title>
 <meta charset="utf-8">
 </head>
 <body>
@@ -8,31 +9,73 @@
 
 <script>
 
-// WASM_SPLIT_PLACEHOLDER
 wasm_data = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 8, 2, 96, 1, 124, 0, 96, 0, 0, 2, 19, 1, 2, 106, 115, 12, 115, 116, 100, 111, 117, 116, 95, 119, 114, 105, 116, 101, 0, 0, 3, 2, 1, 1, 7, 1, 0, 8, 1, 1, 10, 235, 1, 1, 232, 1, 4, 1, 124, 1, 124, 1, 124, 1, 124, 68, 0, 0, 0, 0, 0, 0, 0, 64, 68, 0, 0, 0, 0, 0, 0, 8, 64, 68, 0, 0, 0, 0, 0, 0, 240, 63, 160, 160, 33, 0, 68, 0, 0, 0, 0, 0, 0, 34, 64, 68, 0, 0, 0, 0, 0, 0, 8, 64, 68, 0, 0, 0, 0, 0, 0, 0, 64, 162, 161, 68, 0, 0, 0, 0, 0, 0, 0, 64, 160, 33, 1, 32, 1, 68, 0, 0, 0, 0, 0, 0, 63, 64, 160, 33, 1, 32, 0, 32, 1, 160, 16, 0, 68, 0, 0, 0, 0, 0, 0, 0, 64, 33, 2, 32, 0, 68, 0, 0, 0, 0, 0, 0, 57, 64, 100, 4, 64, 68, 0, 0, 0, 0, 0, 0, 8, 64, 33, 2, 5, 68, 0, 0, 0, 0, 0, 0, 16, 64, 33, 2, 11, 32, 2, 16, 0, 32, 0, 68, 0, 0, 0, 0, 0, 0, 57, 64, 100, 4, 124, 68, 0, 0, 0, 0, 0, 0, 0, 64, 5, 68, 0, 0, 0, 0, 0, 0, 16, 64, 11, 33, 3, 32, 3, 16, 0, 32, 0, 68, 0, 0, 0, 0, 0, 0, 57, 64, 100, 4, 124, 68, 0, 0, 0, 0, 0, 0, 52, 64, 5, 68, 0, 0, 0, 0, 0, 0, 68, 64, 11, 16, 0, 11]);
-// WASM_SPLIT_PLACEHOLDER
-
 
 function say(x) {
     el = document.getElementById('status');
     el.innerHTML += '<br>' + x;
 }
 
-var imports = {js: {alert: alert, stdout_write: say}};
+var pending_str = '';
+
+function say_charcode(i) {
+    c = String.fromCharCode(i);
+    if (c == '\n') { c = '<br>'; }
+    el = document.getElementById('status');
+    el.innerHTML += c;
+}
+
+var providedfuncs = {
+    alert: alert,
+    stdout_write: say,
+    stdout_write_charcode: say_charcode,
+};
+
 
 window.onload = function() {
     say('Compiling wasm module')
     module_ = new WebAssembly.Module(wasm_data);
     say('Initializing wasm module')
     say('Result: ');
-    module = new WebAssembly.Instance(module_, imports);
-    
+    module = new WebAssembly.Instance(module_, {js: providedfuncs});
 }
-
 
 </script>
 
-<div id='status' />
+
+<div style='display:flex;'>
+
+<div style='flex: 1;'>
+<h2> Code </h2>
+<pre>
+
+    # asd
+    a = 2 + 3 + 1
+    b = 9 - 3 * 2 + 2
+    b += 31
+    print(a + b)
+    
+    c = 2
+    if a > 25 do
+       c = 3
+    else
+       c = 4
+    end
+    print(c)
+    
+    d = if a > 25 do 2 else 4 end
+    print(d)
+    print(if a > 25 do 20 else 40 end)
+    
+</pre>
+</div>
+
+<div style='flex: 1;'>
+<h2> Output </h2>
+<div id='status' ></div>
+</div>
+
+</div>
 
 </body>
 </html>

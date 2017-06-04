@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<title>manual1</title>
 <meta charset="utf-8">
 </head>
 <body>
@@ -8,30 +9,84 @@
 
 <script>
 
-// WASM_SPLIT_PLACEHOLDER
 wasm_data = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 18, 4, 96, 1, 124, 0, 96, 1, 124, 0, 96, 2, 124, 124, 1, 124, 96, 0, 0, 2, 30, 2, 2, 106, 115, 5, 97, 108, 101, 114, 116, 0, 0, 2, 106, 115, 12, 115, 116, 100, 111, 117, 116, 95, 119, 114, 105, 116, 101, 0, 1, 3, 3, 2, 2, 3, 7, 7, 1, 3, 97, 100, 100, 0, 2, 8, 1, 3, 10, 58, 2, 18, 0, 68, 0, 0, 0, 0, 0, 0, 69, 64, 16, 1, 32, 0, 32, 1, 160, 11, 37, 1, 1, 124, 3, 64, 32, 0, 16, 1, 68, 0, 0, 0, 0, 0, 0, 240, 63, 32, 0, 160, 34, 0, 68, 0, 0, 0, 0, 0, 0, 36, 64, 99, 13, 0, 11, 11]);
-// WASM_SPLIT_PLACEHOLDER
-
-var imports = {js: {alert: alert, stdout_write: console.log}};
 
 function say(x) {
     el = document.getElementById('status');
     el.innerHTML += '<br>' + x;
 }
 
+var providedfuncs = {
+    alert: alert,
+    stdout_write: say,
+    stdout_write_char: function(i) { say(String.fromCharCode(i)); },
+};
+
+
 window.onload = function() {
     say('Compiling wasm module')
-    
-    module = new WebAssembly.Instance(new WebAssembly.Module(wasm_data), imports);
-    
-    say('Using wasm module')
-    say('exports: ' + Object.keys(module.exports));
+    module_ = new WebAssembly.Module(wasm_data);
+    say('Initializing wasm module')
+    say('Result: ');
+    module = new WebAssembly.Instance(module_, {js: providedfuncs});
 }
-
 
 </script>
 
-<div id='status' />
+
+<div style='display:flex;'>
+
+<div style='flex: 1;'>
+<h2> Code </h2>
+<pre>
+Module(
+    TypeSection(
+        FunctionSig(['f64'], [])
+        FunctionSig(['f64'], [])
+        FunctionSig(['f64', 'f64'], ['f64'])
+        FunctionSig([], [])
+    )
+    ImportSection(
+        Import('js', 'alert', 'function', 0)
+        Import('js', 'stdout_write', 'function', 1)
+    )
+    FunctionSection(2, 3)
+    ExportSection(
+        Export('add', 'function', 2)
+    )
+    StartSection(3)
+    CodeSection(
+        FunctionDef([]
+            Instruction('f64.const', 42)
+            Instruction('call', 1)
+            Instruction('get_local', 0)
+            Instruction('get_local', 1)
+            Instruction('f64.add', )
+        )
+        FunctionDef(['f64']
+            Instruction('loop', 'emptyblock')
+            Instruction('get_local', 0)
+            Instruction('call', 1)
+            Instruction('f64.const', 1)
+            Instruction('get_local', 0)
+            Instruction('f64.add', )
+            Instruction('tee_local', 0)
+            Instruction('f64.const', 10)
+            Instruction('f64.lt', )
+            Instruction('br_if', 0)
+            Instruction('end', )
+        )
+    )
+)
+</pre>
+</div>
+
+<div style='flex: 1;'>
+<h2> Output </h2>
+<div id='status' ></div>
+</div>
+
+</div>
 
 </body>
 </html>

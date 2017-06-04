@@ -6,7 +6,7 @@ by the parser and converts them to WASM.
 from zoof1.tokenizer import tokenize
 from zoof1.parser import Expr, parse
 
-from wasmtools import *
+import wasmtools as wt
 
 # todo: eventually this should produce WASM more directly (without first going
 # through wasmtools), at least for the instructions.
@@ -38,20 +38,20 @@ def compile(ast):
     ctx = compile_func(ast)
     locals = ['f64' for i in ctx.names]
     
-    module = Module(
-        TypeSection(
-            FunctionSig(['f64']),  # import write func (could share the sig)
-            FunctionSig([]),  # start func
+    module = wt.Module(
+        wt.TypeSection(
+            wt.FunctionSig(['f64']),  # import write func (could share the sig)
+            wt.FunctionSig([]),  # start func
             ),
-        ImportSection(
-            Import('js', 'stdout_write', 'function', 0),
+        wt.ImportSection(
+            wt.Import('js', 'stdout_write', 'function', 0),
             ),
-        FunctionSection(1),  # functions defined in this module have sigs ...
-        ExportSection(
+        wt.FunctionSection(1),  # functions defined in this module have sigs ...
+        wt.ExportSection(
             ),
-        StartSection(1),
-        CodeSection(
-            FunctionDef(locals, *ctx.instructions)
+        wt.StartSection(1),
+        wt.CodeSection(
+            wt.FunctionDef(locals, *ctx.instructions)
             ),
         )
     
@@ -221,4 +221,4 @@ if __name__ == '__main__':
     wasm.show()
     print('nbytes:', len(wasm.to_binary()))
     
-    insert_wasm_into_html(__file__[:-3] + '.html', wasm.to_binary())
+    wt.produce_example_html('zoof1.html', EXAMPLE, wasm.to_binary())

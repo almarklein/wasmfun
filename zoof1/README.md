@@ -1,5 +1,11 @@
+# Zoof lang
+
 This is a very preliminary, very much WIP, and above all, very experimental
 implementation of a programming language that compiles directly to WASM.
+
+## Examples
+
+* Zoof 1: http://htmlpreview.github.io/?https://github.com/almarklein/pywasm/blob/master/zoof1/zoof1.html
 
 ## Status
 

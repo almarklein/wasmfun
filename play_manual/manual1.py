@@ -6,32 +6,32 @@ as well as importing functions from the host environment and using then
 in WASM.
 """
 
-from wasmtools import *
+import wasmtools as wt
 
 
-root = Module(
-    TypeSection(
-        FunctionSig(['f64']),  # import alert func
-        FunctionSig(['f64']),  # import write func (could share the sig)
-        FunctionSig(['f64', 'f64'], ['f64']), # add func
-        FunctionSig([]),  # start func
+root = wt.Module(
+    wt.TypeSection(
+        wt.FunctionSig(['f64']),  # import alert func
+        wt.FunctionSig(['f64']),  # import write func (could share the sig)
+        wt.FunctionSig(['f64', 'f64'], ['f64']), # add func
+        wt.FunctionSig([]),  # start func
         ),
-    ImportSection(
-        Import('js', 'alert', 'function', 0),
-        Import('js', 'stdout_write', 'function', 1),
+    wt.ImportSection(
+        wt.Import('js', 'alert', 'function', 0),
+        wt.Import('js', 'stdout_write', 'function', 1),
         ),
-    FunctionSection(2, 3),
-    ExportSection(
-        Export('add', 'function', 2),
+    wt.FunctionSection(2, 3),
+    wt.ExportSection(
+        wt.Export('add', 'function', 2),
         ),
-    StartSection(3),
-    CodeSection(
-        FunctionDef([], 
-            Instruction('f64.const', 42), Instruction('call', 1),  # write 42
-            # Instruction('f64.const', 1337), Instruction('call', 0),  # alert 1337
-            Instruction('get_local', 0), Instruction('get_local', 1), Instruction('f64.add'),
+    wt.StartSection(3),
+    wt.CodeSection(
+        wt.FunctionDef([], 
+            ('f64.const', 42), ('call', 1),  # write 42
+            # ('f64.const', 1337), ('call', 0),  # alert 1337
+            ('get_local', 0), ('get_local', 1), ('f64.add'),
             ),
-        FunctionDef(['f64'],  # start func
+        wt.FunctionDef(['f64'],  # start func
             ('loop', 'emptyblock'),
                 # write iter
                 ('get_local', 0), ('call', 1),
@@ -50,6 +50,6 @@ root.show()
 
 bb = root.to_binary()
 print(bb)
-hexdump(bb)
+wt.hexdump(bb)
 
-insert_wasm_into_html(__file__[:-3] + '.html', bb)
+wt.produce_example_html(__file__[:-3] + '.html', root.to_text(), bb)
