@@ -7,19 +7,6 @@ and then translated into WASM instructions.
 import wasmtools as wt
 
 
-EXAMPLE = """
-+10
--2 # can have comments
-
-# empty lines
-
-*7
-/ 2 # can have space
-- 7
-* 2
-"""
-
-
 class Token:
     pass
 
@@ -114,6 +101,35 @@ def compile(text):
     return wasmify(parse(tokenize(text))).to_binary()
 
 
+
+EXAMPLE1 = """
++10
+-2 # can have comments
+
+# empty lines
+
+*7
+/ 2 # can have space
+- 7
+* 2
+"""
+
+
+EXAMPLE2 = """
+# Income
++10
++12
++3
++8
+
+# Costs
+-8
+-4
+-2
+-6
+"""
+
+
 if __name__ == '__main__':
-    wasm = compile(EXAMPLE)
-    wt.produce_example_html('calc1.html', EXAMPLE, wasm)
+    wt.produce_example_html('calc1.html', EXAMPLE1, compile(EXAMPLE1))
+    wt.produce_example_html('calc2.html', EXAMPLE2, compile(EXAMPLE2))
