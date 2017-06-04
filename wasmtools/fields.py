@@ -260,10 +260,10 @@ class TableSection(Section):
 
 
 class MemorySection(Section):
-    """ Declares initial (and max) sizes of linear memory. Only one default
-    memory can exist in the MVP.
+    """ Declares initial (and max) sizes of linear memory, expressed in
+    WASM pages (64KiB). Only one default memory can exist in the MVP.
     """
-    __slots__ = []
+    __slots__ = ['entries']
     id = 5
     
     def __init__(self, *entries):
@@ -276,15 +276,16 @@ class MemorySection(Section):
     def get_binary_section(self, f):
         f.write(packvu32(len(self.entries)))
         for entrie in self.entries:
+            # resizable_limits
             if isinstance(entrie, int):
                 entrie = (entrie, )
             if len(entrie) == 1:
                 f.write(packvu1(0))
-                f.write(packvu32(entrie[0]))
+                f.write(packvu32(entrie[0]))  # initial, no max
             else:
                 f.write(packvu1(1))
-                f.write(packvu32(entrie[0]))
-                f.write(packvu32(entrie[1]))
+                f.write(packvu32(entrie[0]))  # initial
+                f.write(packvu32(entrie[1]))  # maximum
 
 
 class GlobalSection(Section):
@@ -360,7 +361,7 @@ class DataSection(Section):
     Note that the initial contents of linear memory are zero.
     """
     
-    __slots__ = []
+    __slots__ = ['chunks']
     id = 11
     
     def __init__(self, *chunks):
