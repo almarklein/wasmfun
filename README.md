@@ -5,6 +5,16 @@ This is basically me fooling around with WASM to get a feel for it and seeing
 if/how I can put it to actual use.
 
 
+## How to use this code
+
+You can browse the code on Github, the readme's of most subdirs have links to
+html pages that show a piece of code, run the WASM that was produced
+from it, and show the output.
+
+To play with this yourself, clone the repository and add the root directory
+to your `PYTHONPATH`. Needs Python 3.x.
+
+
 ## What is WASM?
 
 WASM, short for WebAssembly, is a low level description of a program. It is
