@@ -209,7 +209,7 @@ if __name__ == '__main__':
     print('nbytes:', len(wasm.to_binary()))
     wt.produce_example_html('brainfuck1.html', EXAMPLE1, wasm.to_binary())
     
-    wt.produce_example_html('brainfuck2.html', EXAMPLE1, brainfuck2wasm(EXAMPLE2).to_binary())
+    wt.produce_example_html('brainfuck2.html', EXAMPLE2, brainfuck2wasm(EXAMPLE2).to_binary())
     
     
     

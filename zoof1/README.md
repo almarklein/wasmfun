@@ -5,7 +5,10 @@ implementation of a programming language that compiles directly to WASM.
 
 ## Examples
 
-* Zoof 1: http://htmlpreview.github.io/?https://github.com/almarklein/pywasm/blob/master/zoof1/zoof1.html
+(best to open in new tab)
+
+* <a href="http://htmlpreview.github.io/?https://github.com/almarklein/pywasm/blob/master/zoof1/zoof1.html" target="_blank">
+  Zoof example 1</a>
 
 ## Status
 
