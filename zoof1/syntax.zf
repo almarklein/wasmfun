@@ -87,6 +87,13 @@ x = if a < 9 do 4 else 5
 x = if a < 3 use 4 else 5
 
 
+# Rust's approach, avoids dangling/optional end-token
+if ... {
+    ...
+}
+if ... { ...} else {...}
+
+
 ## Loops
 
 # The full form
@@ -118,9 +125,13 @@ end
 
 ## Typedefs
 
-typedef MyType(SuperType)
-
+typedef MyType from SuperType
+    x as int = 0
 end
+
+#maybe 
+
+typedef MyType(x as int, y as Text) from SuperType
 
 
 ## Match end
