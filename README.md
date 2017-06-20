@@ -92,6 +92,10 @@ like a calculator, which is compiled to WASM.
 **brainfuck**
 A compiler of brainfuck to WASM.
 
+**simplepy:**
+
+A compiler for a very-strict-subset of Python to WASM.
+
 **zoof1:**
 An experimental language with a very friendly syntax that compiles to WASM.
 The parsing and compiling is implemented in Python, but it could eventually
