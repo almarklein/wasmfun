@@ -25,10 +25,15 @@ function say_charcode(i) {
     el.innerHTML += c;
 }
 
+function perf_counter() {
+    return performance.now()*1e-3;
+}
+
 var providedfuncs = {
     alert: alert,
     stdout_write: say,
     stdout_write_charcode: say_charcode,
+    perf_counter: perf_counter,
 };
 
 
