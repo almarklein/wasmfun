@@ -15,6 +15,10 @@ Kinds of blocks:
 # The hash char is used for comments. We could do Julia-style multiline comments
 # but I don't really see the need.
 
+// one could argue that the slash is generally easier to reach
+// though I like // for integer division
+
+
 ## Assignments
 
 # classic
@@ -119,7 +123,7 @@ try .... catch SomeError ... end
 ## Context manager
 
 with asdasd() as f do
-    asdas
+    asda
 end
 
 

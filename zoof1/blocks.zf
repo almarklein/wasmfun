@@ -1,0 +1,140 @@
+### Using consistent do-end ###
+
+if x do
+    foo()
+end
+
+if x do foo() end
+
+y = if x do 4 else 0 end
+
+for i in x do
+    foo(i)
+end
+
+for i in x do foo(i) end
+
+y = [for i in x do foo(i) end]
+z = [for i in x do if i>0 do foo(i) end end]
+
+
+### Using compact/smart do-end ###
+
+if x  # no do required here
+    foo()
+end
+
+if x do foo()  # if do is on same line of if, and not the last token on the line, end can be omitted
+
+y = if x do 4 else 0  # dito
+
+for i in x
+    foo(i)
+end
+
+for i in x do foo(i)
+
+y = [for i in x do foo(i)]  # same here, but in this case the bracket closes the for
+z = [for i in x if i>0 do foo(i)]  # if block replaces the for-do, end not necessary
+
+for i in x if x > 0 for y in yy do foo(x, y)
+
+do
+    x = foo()
+while x > 0
+
+while x > 0
+    x = foo()
+end
+
+
+do
+    ...
+end
+
+
+### Using Rust style ###
+
+if x {
+    foo()
+}
+
+if x {foo()}
+
+for i in x {
+    foo(i)
+}
+
+for i in x {foo(i)}
+
+
+y = [for i in x {foo(i)}]
+z = [for i in x {if x > 0 {foo(i)}}]
+
+
+
+### how to write loops ###
+
+# Julia/Python/Rust like iterateor
+for i in x
+    foo(i)
+end
+
+# Quorom style
+repeat n times
+    ...
+end
+
+# Maybe ...
+iterate x as i do foo(i) end
+# but does not work, "for i in x do ..." is more natural englisch if we talk about iteration
+
+# While loops also seem fine
+
+
+### Keywords not in englisch? ###
+
+# To stay more neutral, we could consider using non-english keywords.
+# Actually, to be neutral, we should use made-up words, or Esperanto.
+# Note that there always is the stdlib, but alt langs can be provided by modules
+# that wrap them.
+
+
+por i en x faru foo(i) fino
+
+dum i > 0
+    foo(i)
+fino
+
+se i < 0 faru foo()
+
+# Is it fari or faru?
+# Perhaps use "far" and "fin" instead 
+
+
+
+### Blocks and scope ###
+
+for, if, while blocks are "shallow scopes", functions have "hard scopes".
+What about creating explicit blocks
+
+do
+    asdad
+    asdasd
+    asd
+end
+
+What kind of scope is this?
+
+Maybe ..
+
+func foo ()  ...   # has hard scope, because its a func
+
+# Similarly, a hard block
+do ???
+    ...
+end
+ 
+# What about a function that can be used as an inline func, but is guaranteed
+# not to be a closure (i.e. not a risk for memory leaks).
+
