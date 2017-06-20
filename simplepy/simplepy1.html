@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>simplepy1</title>
+<meta charset="utf-8">
+</head>
+<body>
+
+
+<script>
+
+wasm_data = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 12, 3, 96, 0, 0, 96, 1, 124, 0, 96, 0, 1, 124, 2, 37, 2, 2, 106, 115, 12, 115, 116, 100, 111, 117, 116, 95, 119, 114, 105, 116, 101, 0, 1, 2, 106, 115, 12, 112, 101, 114, 102, 95, 99, 111, 117, 110, 116, 101, 114, 0, 2, 3, 2, 1, 0, 7, 1, 0, 8, 1, 2, 10, 116, 1, 114, 5, 1, 124, 1, 124, 1, 124, 1, 124, 1, 124, 68, 0, 0, 0, 0, 0, 0, 68, 64, 68, 0, 0, 0, 0, 0, 0, 8, 64, 161, 33, 0, 68, 0, 0, 0, 0, 0, 0, 8, 64, 68, 0, 0, 0, 0, 0, 0, 40, 64, 68, 0, 0, 0, 0, 0, 0, 0, 64, 33, 3, 33, 2, 33, 1, 32, 1, 33, 4, 2, 64, 3, 64, 32, 4, 32, 2, 102, 13, 1, 32, 4, 16, 0, 32, 0, 68, 0, 0, 0, 0, 0, 0, 240, 63, 160, 33, 0, 32, 4, 32, 3, 160, 33, 4, 12, 0, 11, 11, 32, 0, 16, 0, 11]);
+
+function say(x) {
+    el = document.getElementById('status');
+    el.innerHTML += '<br>' + x;
+}
+
+var pending_str = '';
+
+function say_charcode(i) {
+    c = String.fromCharCode(i);
+    if (c == '\n') { c = '<br>'; }
+    el = document.getElementById('status');
+    el.innerHTML += c;
+}
+
+function perf_counter() {
+    return performance.now()*1e-3;
+}
+
+var providedfuncs = {
+    alert: alert,
+    stdout_write: say,
+    stdout_write_charcode: say_charcode,
+    perf_counter: perf_counter,
+};
+
+
+window.onload = function() {
+    say('Compiling wasm module')
+    module_ = new WebAssembly.Module(wasm_data);
+    say('Initializing wasm module')
+    say('Result: ');
+    module = new WebAssembly.Instance(module_, {js: providedfuncs});
+}
+
+</script>
+
+
+<div style='display:flex;'>
+
+<div style='flex: 1;'>
+<h2> Code </h2>
+<pre>
+
+i = 40 - 3
+for j in range(3, 12, 2):
+    print(j)
+    i = i + 1
+
+print(i)
+
+</pre>
+</div>
+
+<div style='flex: 1;'>
+<h2> Output </h2>
+<div id='status' ></div>
+</div>
+
+</div>
+
+</body>
+</html>
