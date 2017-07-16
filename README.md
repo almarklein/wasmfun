@@ -15,7 +15,7 @@ from it, and show the output.
 
 To play with this yourself, clone the repository and add the root directory
 to your `PYTHONPATH`. Needs Python 3.x, and nothing more. The (limited) docs
-are [here](DOCS.html).
+are [here](DOCS.md).
 
 
 ## What is WASM?
