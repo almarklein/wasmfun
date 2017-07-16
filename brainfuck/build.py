@@ -3,7 +3,8 @@
 
 import os
 import wasmfun as wf
-from brainfuck_compiler import brainfuck2wasm
+from brainfuck import brainfuck2wasm
+
 
 for fname in os.listdir('.'):
     if fname.startswith('example') and fname.endswith('.bf'):
