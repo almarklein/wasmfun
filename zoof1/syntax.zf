@@ -58,6 +58,9 @@ from foo use bar, spam as eggs
 # function is too long
 # func is perfect
 
+# A more intuitive name mighe be "action" or "procedure", but "function is so
+# common that I think I'd go with that
+
 func foo()
     ...
 end
@@ -74,14 +77,14 @@ if ... do
    ...
 elseif ... do
    ...
-done
+end
 
 # do is optional in multiline
 if ...
    ...
 elseif ...
    ...
-done
+end
 
 # end is optional in single-line
 x = if a < 9 do 4 else 5
@@ -115,9 +118,45 @@ even_nums = [for i in 1:10 do
 
 # same for while
 
+# Studies show that for and while are counterintuitive ...
+
+# Repeat n times
+loop 10
+    ...
+end
+
+# Iteration
+loop i in 1:9
+    ...
+end
+
+loop i in 1:9 do ...
+
+# While
+loop while a < b
+    ...
+end
+
+loop
+    ...
+while a < b
+
+# inifinite loop
+loop 
+    ...
+end
+
+
+# Do not allow multiple statements in a one-liner. This should cause syntaxerror:
+if a < b do if i > 2
+    ...
+end
+    
 ## Try except
 
 try .... catch SomeError ... end
+
+check ... detect SomeError ... always ... end
 
 
 ## Context manager
