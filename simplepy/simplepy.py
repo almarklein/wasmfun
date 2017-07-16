@@ -6,7 +6,7 @@ to WASM.
 from time import time as perf_counter  # cause perf_counter not available in pypy3
 import ast
 
-import wasmtools as wt
+import wasmfun as wf
 
 
 class Context:
@@ -61,22 +61,22 @@ def simplepy2wasm(code):
     locals = ['f64' for i in ctx.names]
     
     # Produce wasm
-    module = wt.Module(
-        wt.TypeSection(
-            wt.FunctionSig([]),  # start func
-            wt.FunctionSig(['f64']),  # import write func
-            wt.FunctionSig([], ['f64']),  # import perf_counter func
+    module = wf.Module(
+        wf.TypeSection(
+            wf.FunctionSig([]),  # start func
+            wf.FunctionSig(['f64']),  # import write func
+            wf.FunctionSig([], ['f64']),  # import perf_counter func
             ),
-        wt.ImportSection(
-            wt.Import('js', 'stdout_write', 'function', 1),
-            wt.Import('js', 'perf_counter', 'function', 2),
+        wf.ImportSection(
+            wf.Import('js', 'stdout_write', 'function', 1),
+            wf.Import('js', 'perf_counter', 'function', 2),
             ),
-        wt.FunctionSection(0),  # functions defined in this module have sigs ...
-        wt.ExportSection(
+        wf.FunctionSection(0),  # functions defined in this module have sigs ...
+        wf.ExportSection(
             ),
-        wt.StartSection(2),
-        wt.CodeSection(
-            wt.FunctionDef(locals, *ctx.instructions)
+        wf.StartSection(2),
+        wf.CodeSection(
+            wf.FunctionDef(locals, *ctx.instructions)
             ),
         )
     return module
@@ -299,10 +299,10 @@ print(i)
 
 if __name__ == '__main__':
    
-    wt.produce_example_html('simplepy1.html', EXAMPLE1, simplepy2wasm(EXAMPLE1).to_binary())
+    wf.produce_example_html('simplepy1.html', EXAMPLE1, simplepy2wasm(EXAMPLE1).to_binary())
     
     wasm = simplepy2wasm(EXAMPLE2)
     print(wasm)
-    wt.produce_example_html('simplepy2.html', EXAMPLE2, wasm.to_binary())
+    wf.produce_example_html('simplepy2.html', EXAMPLE2, wasm.to_binary())
     
     # exec(EXAMPLE2) this takes about 30 s

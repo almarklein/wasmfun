@@ -7,9 +7,9 @@ which the only types are floats) to WASM.
 
 (best to open in new tab)
 
-* <a href="http://htmlpreview.github.io/?https://github.com/almarklein/pywasm/blob/master/simplepy/simplepy1.html" target="_blank">
+* <a href="http://htmlpreview.github.io/?https://github.com/almarklein/wasmfun/blob/master/simplepy/simplepy1.html" target="_blank">
   Simplepy example 1</a>
-* <a href="http://htmlpreview.github.io/?https://github.com/almarklein/pywasm/blob/master/simplepy/simplepy2.html" target="_blank">
+* <a href="http://htmlpreview.github.io/?https://github.com/almarklein/wasmfun/blob/master/simplepy/simplepy2.html" target="_blank">
   Simplepy example 2</a>
 
 

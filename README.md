@@ -1,4 +1,4 @@
-# pywasm
+# wasmfun
 Getting the hang of WASM - generate WASM from Python
 
 This is basically me fooling around with WASM to get a feel for it and seeing
@@ -74,7 +74,7 @@ nearly as fast as C.
 
 ## In this repo
 
-**wasmtools:**
+**wasmfun:**
 I (partly) implemented an internal representation of (binary) WASM that
 can be exported to a .wasm file. One can write WASM directly (in Python)
 using the classes of this internal representation. Or one can use it

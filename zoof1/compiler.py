@@ -3,10 +3,10 @@ Compiler for the experimental WIP Zoof lang. It takes the AST produced
 by the parser and converts them to WASM.
 """
 
-from zoof1.tokenizer import tokenize
-from zoof1.parser import Expr, parse
+from tokenizer import tokenize
+from parser import Expr, parse
 
-import wasmtools as wt
+import wasmfun as wf
 
 # todo: eventually this should produce WASM more directly (without first going
 # through wasmtools), at least for the instructions.
@@ -38,20 +38,20 @@ def compile(ast):
     ctx = compile_func(ast)
     locals = ['f64' for i in ctx.names]
     
-    module = wt.Module(
-        wt.TypeSection(
-            wt.FunctionSig(['f64']),  # import write func (could share the sig)
-            wt.FunctionSig([]),  # start func
+    module = wf.Module(
+        wf.TypeSection(
+            wf.FunctionSig(['f64']),  # import write func (could share the sig)
+            wf.FunctionSig([]),  # start func
             ),
-        wt.ImportSection(
-            wt.Import('js', 'stdout_write', 'function', 0),
+        wf.ImportSection(
+            wf.Import('js', 'stdout_write', 'function', 0),
             ),
-        wt.FunctionSection(1),  # functions defined in this module have sigs ...
-        wt.ExportSection(
+        wf.FunctionSection(1),  # functions defined in this module have sigs ...
+        wf.ExportSection(
             ),
-        wt.StartSection(1),
-        wt.CodeSection(
-            wt.FunctionDef(locals, *ctx.instructions)
+        wf.StartSection(1),
+        wf.CodeSection(
+            wf.FunctionDef(locals, *ctx.instructions)
             ),
         )
     
@@ -221,4 +221,4 @@ if __name__ == '__main__':
     wasm.show()
     print('nbytes:', len(wasm.to_binary()))
     
-    wt.produce_example_html('zoof1.html', EXAMPLE, wasm.to_binary())
+    wf.produce_example_html('zoof1.html', EXAMPLE, wasm.to_binary())

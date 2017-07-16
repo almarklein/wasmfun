@@ -6,7 +6,7 @@ is turing complete though.
 
 Examples (best to open in new tab):
 
-* <a href="http://htmlpreview.github.io/?https://github.com/almarklein/pywasm/blob/master/brainfuck/brainfuck1.html" target="_blank">
+* <a href="http://htmlpreview.github.io/?https://github.com/almarklein/wasmfun/blob/master/brainfuck/brainfuck1.html" target="_blank">
   brainfuck hello world</a>
-* <a href="http://htmlpreview.github.io/?https://github.com/almarklein/pywasm/blob/master/brainfuck/brainfuck2.html" target="_blank">
+* <a href="http://htmlpreview.github.io/?https://github.com/almarklein/wasmfun/blob/master/brainfuck/brainfuck2.html" target="_blank">
   brainfuck Fibonacci</a>

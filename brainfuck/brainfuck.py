@@ -4,7 +4,7 @@ a very simple syntax, but is very hard to program in. It is turing complete
 though, and uses heap-allocated memory, making it a nice exercise.
 """
 
-import wasmtools as wt
+import wasmfun as wf
 
 
 def _commands2instructions(commands):
@@ -59,20 +59,20 @@ def brainfuck2wasm(code):
     
     instructions = _commands2instructions(commands)
     
-    module = wt.Module(
-        wt.TypeSection(
-            wt.FunctionSig([]),  # start func
-            wt.FunctionSig(['i32']),  # imported func to write chars
+    module = wf.Module(
+        wf.TypeSection(
+            wf.FunctionSig([]),  # start func
+            wf.FunctionSig(['i32']),  # imported func to write chars
             ),
-        wt.ImportSection(
-            wt.Import('js', 'stdout_write_charcode', 'function', 1),
+        wf.ImportSection(
+            wf.Import('js', 'stdout_write_charcode', 'function', 1),
             ),
-        wt.FunctionSection(0),
-        wt.MemorySection((1, 1)),  # 1 page of 64KiB > 30000 minimum for Brainfuck
-        wt.StartSection(1),
-        wt.CodeSection(
-            wt.FunctionDef(['i32'], *instructions)),
-        wt.DataSection(),  # no initial data
+        wf.FunctionSection(0),
+        wf.MemorySection((1, 1)),  # 1 page of 64KiB > 30000 minimum for Brainfuck
+        wf.StartSection(1),
+        wf.CodeSection(
+            wf.FunctionDef(['i32'], *instructions)),
+        wf.DataSection(),  # no initial data
         )
     return module
 
@@ -207,9 +207,9 @@ if __name__ == '__main__':
     
     wasm = brainfuck2wasm(EXAMPLE1)
     print('nbytes:', len(wasm.to_binary()))
-    wt.produce_example_html('brainfuck1.html', EXAMPLE1, wasm.to_binary())
+    wf.produce_example_html('brainfuck1.html', EXAMPLE1, wasm.to_binary())
     
-    wt.produce_example_html('brainfuck2.html', EXAMPLE2, brainfuck2wasm(EXAMPLE2).to_binary())
+    wf.produce_example_html('brainfuck2.html', EXAMPLE2, brainfuck2wasm(EXAMPLE2).to_binary())
     
     
     

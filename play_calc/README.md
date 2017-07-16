@@ -6,7 +6,7 @@ and then translated into WASM instructions.
 
 Examples (best to open in new tab):
 
-* <a href="http://htmlpreview.github.io/?https://github.com/almarklein/pywasm/blob/master/play_calc/calc1.html" target="_blank">
+* <a href="http://htmlpreview.github.io/?https://github.com/almarklein/wasmfun/blob/master/play_calc/calc1.html" target="_blank">
   example 1</a>
-* <a href="http://htmlpreview.github.io/?https://github.com/almarklein/pywasm/blob/master/play_calc/calc2.html" target="_blank">
+* <a href="http://htmlpreview.github.io/?https://github.com/almarklein/wasmfun/blob/master/play_calc/calc2.html" target="_blank">
   example 2</a>

@@ -4,7 +4,7 @@ Intended as a simple example how code can be tokenized, turned into AST
 and then translated into WASM instructions.
 """
 
-import wasmtools as wt
+import wasmfun as wf
 
 
 class Token:
@@ -79,18 +79,18 @@ def wasmify(ast):
     instructions.append(('call', 0))
     
     # Put instructions in a the main function of a WASM module
-    module = wt.Module(
-        wt.TypeSection(
-            wt.FunctionSig([]),  # start func
-            wt.FunctionSig(['f64']),  # import write func
+    module = wf.Module(
+        wf.TypeSection(
+            wf.FunctionSig([]),  # start func
+            wf.FunctionSig(['f64']),  # import write func
             ),
-        wt.ImportSection(
-            wt.Import('js', 'stdout_write', 'function', 1),
+        wf.ImportSection(
+            wf.Import('js', 'stdout_write', 'function', 1),
             ),
-        wt.FunctionSection(0),
-        wt.StartSection(1),
-        wt.CodeSection(
-            wt.FunctionDef([], *instructions))
+        wf.FunctionSection(0),
+        wf.StartSection(1),
+        wf.CodeSection(
+            wf.FunctionDef([], *instructions))
         )
     return module
 
@@ -131,5 +131,5 @@ EXAMPLE2 = """
 
 
 if __name__ == '__main__':
-    wt.produce_example_html('calc1.html', EXAMPLE1, compile(EXAMPLE1))
-    wt.produce_example_html('calc2.html', EXAMPLE2, compile(EXAMPLE2))
+    wf.produce_example_html('calc1.html', EXAMPLE1, compile(EXAMPLE1))
+    wf.produce_example_html('calc2.html', EXAMPLE2, compile(EXAMPLE2))
