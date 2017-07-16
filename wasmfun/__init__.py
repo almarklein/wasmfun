@@ -1,6 +1,5 @@
 """
-A Python library that provides tools to handle WASM code, like generating
-WASM, and perhaps someday interpreting it too.
+A Python library that provides tools to handle WASM code.
 """
 
 __version__ = '0.1'
