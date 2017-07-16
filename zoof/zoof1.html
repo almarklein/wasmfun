@@ -25,10 +25,15 @@ function say_charcode(i) {
     el.innerHTML += c;
 }
 
+function perf_counter() {
+    return performance.now()*1e-3;
+}
+
 var providedfuncs = {
     alert: alert,
     stdout_write: say,
     stdout_write_charcode: say_charcode,
+    perf_counter: perf_counter,
 };
 
 
@@ -49,24 +54,24 @@ window.onload = function() {
 <h2> Code </h2>
 <pre>
 
-    # asd
-    a = 2 + 3 + 1
-    b = 9 - 3 * 2 + 2
-    b += 31
-    print(a + b)
-    
-    c = 2
-    if a > 25 do
-       c = 3
-    else
-       c = 4
-    end
-    print(c)
-    
-    d = if a > 25 do 2 else 4 end
-    print(d)
-    print(if a > 25 do 20 else 40 end)
-    
+# asd
+a = 2 + 3 + 1
+b = 9 - 3 * 2 + 2
+b += 31
+print(a + b)
+
+c = 2
+if a > 25 do
+    c = 3
+else
+    c = 4
+end
+print(c)
+
+d = if a > 25 do 2 else 4 end
+print(d)
+print(if a > 25 do 20 else 40 end)
+
 </pre>
 </div>
 

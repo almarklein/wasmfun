@@ -3,10 +3,11 @@ Compiler for the experimental WIP Zoof lang. It takes the AST produced
 by the parser and converts them to WASM.
 """
 
-from tokenizer import tokenize
-from parser import Expr, parse
-
 import wasmfun as wf
+
+from zf_tokenizer import tokenize
+from zf_parser import Expr, parse
+
 
 # todo: eventually this should produce WASM more directly (without first going
 # through wasmtools), at least for the instructions.
@@ -189,36 +190,3 @@ def _compile_call(expr, ctx, push_stack=True):
     else:
         raise RuntimeError('Unknown function %r' % name)
     ctx.instructions.extend(ii)
-
-
-if __name__ == '__main__':
-    
-    EXAMPLE = """
-    # asd
-    a = 2 + 3 + 1
-    b = 9 - 3 * 2 + 2
-    b += 31
-    print(a + b)
-    
-    c = 2
-    if a > 25 do
-       c = 3
-    else
-       c = 4
-    end
-    print(c)
-    
-    d = if a > 25 do 2 else 4 end
-    print(d)
-    print(if a > 25 do 20 else 40 end)
-    """
-   
-    tokens = tokenize(EXAMPLE)
-    ast = parse(tokens)
-    ast.show()
-    print('---')
-    wasm = compile(ast)
-    wasm.show()
-    print('nbytes:', len(wasm.to_binary()))
-    
-    wf.produce_example_html('zoof1.html', EXAMPLE, wasm.to_binary())

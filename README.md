@@ -96,7 +96,7 @@ A compiler of brainfuck to WASM.
 
 A compiler for a very-strict-subset of Python to WASM.
 
-**zoof1:**
+**zoof:**
 An experimental language with a very friendly syntax that compiles to WASM.
 The parsing and compiling is implemented in Python, but it could eventually
 be self-hosting, which is when it starts to be come real interesting ...

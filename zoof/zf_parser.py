@@ -6,7 +6,7 @@ form of nested expression objects, which can be compiled to WASM.
 
 import os
 
-from zoof1.tokenizer import tokenize, TYPES
+from zf_tokenizer import tokenize, TYPES
 
 
 class ZoofSyntaxError(SyntaxError):

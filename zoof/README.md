@@ -7,7 +7,7 @@ implementation of a programming language that compiles directly to WASM.
 
 (best to open in new tab)
 
-* <a href="http://htmlpreview.github.io/?https://github.com/almarklein/wasmfun/blob/master/zoof1/zoof1.html" target="_blank">
+* <a href="http://htmlpreview.github.io/?https://github.com/almarklein/wasmfun/blob/master/zoof/zoof1.html" target="_blank">
   Zoof example 1</a>
 
 ## Status
