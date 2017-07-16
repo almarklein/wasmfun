@@ -77,7 +77,7 @@ lines.append('')
 
 lines += ['## WASM opcodes', '']
 
-for key in wf._opcodes.OPCODES:
+for key in wf.OPCODES:
     lines.append('* `%s`' % key)
 
 lines.append('')

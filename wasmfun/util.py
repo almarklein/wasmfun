@@ -52,3 +52,4 @@ def produce_example_html(filename, code, wasm):
     
     with open(filename, 'wb') as f:
         f.write(html.encode())
+    print('Wrote example HTML to', filename)

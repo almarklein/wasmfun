@@ -5,7 +5,7 @@ The field classes to represent a WASM program.
 from io import BytesIO
 from struct import pack as spack
 
-from ._opcodes import OPCODES
+from . import OPCODES
 
 
 LANG_TYPES = {
