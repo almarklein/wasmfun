@@ -34,6 +34,16 @@ def make_sig(fun, name):
     return "%s(%s)" % (name, ", ".join(args2) )
 
 
+def get_docstring(fun):
+    # assumes 4-space indentation for now.
+    lines = []
+    doc = '    ' + fun.__doc__.strip()
+    for line in doc.splitlines():
+        lines.append(line[4:])
+    lines.append('')
+    return '\n'.join(lines)
+
+
 lines = ['# Documentation of wasmfun ' + wf.__version__, '']
 
 
@@ -43,8 +53,8 @@ lines += ['## Utility functions', '']
 
 for name in wf.util.__all__:
     fun = getattr(wf.util, name)
-    lines.append('### function `%s`' % make_sig(fun, fun.__name__))
-    lines.append('    ' + fun.__doc__.strip())
+    lines.append('#### function `%s`' % make_sig(fun, fun.__name__))
+    lines.append(get_docstring(fun))
     lines.append('')
 
 lines.append('')
@@ -56,8 +66,8 @@ lines += ['## Module building classes', '']
 
 for name in wf.fields.__all__:
     cls = getattr(wf.fields, name)
-    lines.append('### class `%s`' % make_sig(cls.__init__, cls.__name__))
-    lines.append('    ' + cls.__doc__.strip())
+    lines.append('#### class `%s`' % make_sig(cls.__init__, cls.__name__))
+    lines.append(get_docstring(cls))
     lines.append('')
 
 lines.append('')

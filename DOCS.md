@@ -2,88 +2,110 @@
 
 ## Utility functions
 
-### function `inspect_bytes_at(bb, offset)`
-    Inspect bytes at the specified offset.
+#### function `inspect_bytes_at(bb, offset)`
+Inspect bytes at the specified offset.
 
-### function `hexdump(bb)`
-    Do a hexdump of the given bytes.
 
-### function `produce_example_html(filename, code, wasm)`
-    Generate an html file for the given code and wasm.
+#### function `hexdump(bb)`
+Do a hexdump of the given bytes.
+
+
+#### function `produce_example_html(filename, code, wasm)`
+Generate an html file for the given code and wasm.
+
 
 
 ## Module building classes
 
-### class `Field()`
-    Representation of a field in the WASM S-expression.
+#### class `Field()`
+Representation of a field in the WASM S-expression.
 
-### class `Module(*sections)`
-    Field representing a module; the toplevel unit of code.
 
-### class `Section()`
-    Base class for module sections.
+#### class `Module(*sections)`
+Field representing a module; the toplevel unit of code.
 
-### class `TypeSection(*functionsigs)`
-    Defines signatures of functions that are either imported or defined in this module.
 
-### class `ImportSection(*imports)`
-    Defines the things to be imported in a module.
+#### class `Section()`
+Base class for module sections.
 
-### class `FunctionSection(*indices)`
-    Declares for each function defined in this module which signature is
-    associated with it. The items in this sections match 1-on-1 with the items
-    in the code section.
 
-### class `TableSection()`
-    Define stuff provided by the host system that WASM can use/reference,
-    but cannot be expressed in WASM itself.
+#### class `TypeSection(*functionsigs)`
+Defines signatures of functions that are either imported or defined in this module.
 
-### class `MemorySection(*entries)`
-    Declares initial (and max) sizes of linear memory, expressed in
-    WASM pages (64KiB). Only one default memory can exist in the MVP.
 
-### class `GlobalSection()`
-    Defines the globals in a module.
+#### class `ImportSection(*imports)`
+Defines the things to be imported in a module.
 
-### class `ExportSection(*exports)`
-    Defines the names that this module exports.
 
-### class `StartSection(index)`
-    Provide the index of the function to call at init-time. The func must
-    have zero params and return values.
+#### class `FunctionSection(*indices)`
+Declares for each function defined in this module which signature is
+associated with it. The items in this sections match 1-on-1 with the items
+in the code section.
 
-### class `ElementSection()`
-    What is this again?
 
-### class `CodeSection(*functiondefs)`
-    The actual code for a module, one CodeSection per function.
+#### class `TableSection()`
+Define stuff provided by the host system that WASM can use/reference,
+but cannot be expressed in WASM itself.
 
-### class `DataSection(*chunks)`
-    Initialize the linear memory.
-    Note that the initial contents of linear memory are zero.
 
-### class `Import(modname, fieldname, kind, type)`
-    Import objects (from other wasm modules or from the host environment).
-    The type argument is an index in the type-section (signature) for funcs
-    and a string type for table, memory and global.
+#### class `MemorySection(*entries)`
+Declares initial (and max) sizes of linear memory, expressed in
+WASM pages (64KiB). Only one default memory can exist in the MVP.
 
-### class `Export(name, kind, index)`
-    Export an object defined in this module. The index is the index
-    in the corresponding index space (e.g. for functions this is the
-    function index space which is basically the concatenation of
-    functions in the import and type sections).
 
-### class `FunctionSig(params=(), returns=())`
-    Defines the signature of a WASM module that is imported or defined in
-    this module.
+#### class `GlobalSection()`
+Defines the globals in a module.
 
-### class `FunctionDef(locals, *instructions)`
-    The definition (of the body) of a function. The instructions can be
-    Instruction instances or strings/tuples describing the instruction.
 
-### class `Instruction(type, *args)`
-    Class for all instruction fields. Can have nested instructions, which
-    really just come after it (so it only allows semantic sugar for blocks and loops.
+#### class `ExportSection(*exports)`
+Defines the names that this module exports.
+
+
+#### class `StartSection(index)`
+Provide the index of the function to call at init-time. The func must
+have zero params and return values.
+
+
+#### class `ElementSection()`
+What is this again?
+
+
+#### class `CodeSection(*functiondefs)`
+The actual code for a module, one CodeSection per function.
+
+
+#### class `DataSection(*chunks)`
+Initialize the linear memory.
+Note that the initial contents of linear memory are zero.
+
+
+#### class `Import(modname, fieldname, kind, type)`
+Import objects (from other wasm modules or from the host environment).
+The type argument is an index in the type-section (signature) for funcs
+and a string type for table, memory and global.
+
+
+#### class `Export(name, kind, index)`
+Export an object defined in this module. The index is the index
+in the corresponding index space (e.g. for functions this is the
+function index space which is basically the concatenation of
+functions in the import and type sections).
+
+
+#### class `FunctionSig(params=(), returns=())`
+Defines the signature of a WASM module that is imported or defined in
+this module.
+
+
+#### class `FunctionDef(locals, *instructions)`
+The definition (of the body) of a function. The instructions can be
+Instruction instances or strings/tuples describing the instruction.
+
+
+#### class `Instruction(type, *args)`
+Class for all instruction fields. Can have nested instructions, which
+really just come after it (so it only allows semantic sugar for blocks and loops.
+
 
 
 ## WASM opcodes
