@@ -98,6 +98,9 @@ class Field:
     
     __slots__ = []
     
+    def __init__(self):
+        pass
+    
     def __repr__(self):
         return '<%s-field>' % self.__class__.__name__
 
@@ -212,7 +215,8 @@ class TypeSection(Section):
 
 
 class ImportSection(Section):
-    
+    """ Defines the things to be imported in a module.
+    """
     __slots__ = ['imports']
     id = 2
     
@@ -254,7 +258,9 @@ class FunctionSection(Section):
 
 
 class TableSection(Section):
-    
+    """ Define stuff provided by the host system that WASM can use/reference,
+    but cannot be expressed in WASM itself.
+    """
     __slots__ = []
     id = 4
 
@@ -289,13 +295,15 @@ class MemorySection(Section):
 
 
 class GlobalSection(Section):
-    
+    """ Defines the globals in a module.
+    """
     __slots__ = []
     id = 6
 
 
 class ExportSection(Section):
-    
+    """ Defines the names that this module exports.
+    """
     __slots__ = ['exports']
     id = 7
     
@@ -332,13 +340,15 @@ class StartSection(Section):
 
 
 class ElementSection(Section):
-    
+    """ What is this again?
+    """
     __slots__ = []
     id = 9
 
 
 class CodeSection(Section):
-    
+    """ The actual code for a module, one CodeSection per function.
+    """
     __slots__ = ['functiondefs']
     id = 10
     
@@ -441,7 +451,9 @@ class Export(Field):
 
 
 class FunctionSig(Field):
-    
+    """ Defines the signature of a WASM module that is imported or defined in
+    this module.
+    """
     __slots__ = ['params', 'returns', 'index']
     
     def __init__(self, params=(), returns=()):

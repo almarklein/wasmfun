@@ -14,7 +14,8 @@ html pages that show a piece of code, run the WASM that was produced
 from it, and show the output.
 
 To play with this yourself, clone the repository and add the root directory
-to your `PYTHONPATH`. Needs Python 3.x, and nothing more.
+to your `PYTHONPATH`. Needs Python 3.x, and nothing more. The (limited) docs
+are [here](DOCS.html).
 
 
 ## What is WASM?

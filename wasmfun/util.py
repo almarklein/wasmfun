@@ -37,6 +37,8 @@ WASM_PLACEHOLDER = 'WASM_PLACEHOLDER'
 
 
 def produce_example_html(filename, code, wasm):
+    """ Generate an html file for the given code and wasm.
+    """
     wasm_text = str(list(wasm))  # [0, 1, 12, ...]
     
     fname = os.path.basename(filename).rsplit('.', 1)[0]
