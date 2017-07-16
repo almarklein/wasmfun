@@ -1,8 +1,10 @@
 # wasmfun
-Getting the hang of WASM - generate WASM from Python
+Getting the hang of WASM
 
-This is basically me fooling around with WASM to get a feel for it and seeing
-if/how I can put it to actual use.
+The repository provides a (pure) Python library to generate WASM, and
+scripts that use it in various ways. The purpose of this code is for
+me to play with WASM, to get a feel for it and seeing if/how I can put
+it to actual use.
 
 
 ## How to use this code
@@ -12,7 +14,7 @@ html pages that show a piece of code, run the WASM that was produced
 from it, and show the output.
 
 To play with this yourself, clone the repository and add the root directory
-to your `PYTHONPATH`. Needs Python 3.x.
+to your `PYTHONPATH`. Needs Python 3.x, and nothing more.
 
 
 ## What is WASM?
@@ -23,7 +25,7 @@ subsequently be translated to native instuctions by a WASM virual machine, like
 the browser. It is not dissimilar from LLVM IR, but is targeted to be able to
 run in browsers.
 
-Check out the links below for (much) more info.
+Check out the links down below for (much) more info.
 
 WASM comes with a text and binary format. The x.wasm extension is for
 the binary format, x.wat is the text format. The browser can only read
@@ -34,7 +36,7 @@ and the binary format. However, it looks like there are currently multiple
 variants of the text format floating around in the web. Perhaps its
 still under change. Also, the relation is not so direct that you can
 map "fields" 1-on-1; there is some compilation/interpretation needed.
-This is why I don't work with the text format in this code.
+This is why this code only works with the binary format.
 
 
 ## WASM is pretty darn cool
@@ -50,7 +52,7 @@ interesting features w.r.t. ease of distribution, safety, etc.
 
 It's important to realize that although WASM is designed to be able to
 run in the browser, it has no dependencies on anything "web". Running on 
-the desktop, or mobile devices, or ... is an equally important goal of WASM.
+the desktop, or mobile devices, or other is an equally important goal of WASM.
 This means that any language compiled to WASM can basically run anywhere.
 This means that any language compiled to WASM can basically run anywhere. I
 intentionally repeated that sentence because its really a big thing!
@@ -93,13 +95,12 @@ like a calculator, which is compiled to WASM.
 A compiler of brainfuck to WASM.
 
 **simplepy:**
-
 A compiler for a very-strict-subset of Python to WASM.
 
 **zoof:**
 An experimental language with a very friendly syntax that compiles to WASM.
 The parsing and compiling is implemented in Python, but it could eventually
-be self-hosting, which is when it starts to be come real interesting ...
+be self-hosting, which is when it will start to be come real interesting ...
 
 
 ## Links
