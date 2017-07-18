@@ -4,6 +4,9 @@ A dict with WASM opcodes.
 
 # Note: left out 32bit opcodes at first. Added them later, but I might have missed some.
 
+# todo: would be nice to also know how many args the opcode needs, so that we can validate that
+
+
 OPCODES = {
     'unreachable':0x00,
     'nop':0x01,
