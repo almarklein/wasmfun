@@ -8,6 +8,32 @@ in WASM.
 
 import wasmfun as wf
 
+I = wf.I
+
+
+instructions = [
+    ('loop', 'emptyblock'),
+        # write iter
+        ('get_local', 0), ('call', 1),
+        # Increase iter
+        ('f64.const', 1), ('get_local', 0), ('f64.add'),
+        ('tee_local', 0), ('f64.const', 10),
+        ('f64.lt'), ('br_if', 0),
+    ('end'),
+    ]
+
+
+# These instructions are equivalent. The latter might be easier to write thanks
+# to autocompletion, but the latter looks nicer IMO and is more efficient.
+instructions = [
+    (I.loop, 'emptyblock'),
+        (I.get_local, 0), (I.call, 1),
+        (I.f64.const, 1), (I.get_local, 0), (I.f64.add),
+        (I.tee_local, 0), (I.f64.const, 10),
+        (I.f64.lt), (I.br_if, 0),
+    (I.end)
+    ]
+
 
 root = wf.Module(
     wf.TypeSection(
@@ -31,16 +57,7 @@ root = wf.Module(
             # ('f64.const', 1337), ('call', 0),  # alert 1337
             ('get_local', 0), ('get_local', 1), ('f64.add'),
             ),
-        wf.FunctionDef(['f64'],  # start func
-            ('loop', 'emptyblock'),
-                # write iter
-                ('get_local', 0), ('call', 1),
-                # Increase iter
-                ('f64.const', 1), ('get_local', 0), ('f64.add'),
-                ('tee_local', 0), ('f64.const', 10),
-                ('f64.lt'), ('br_if', 0),
-                ('end'),
-            ),
+        wf.FunctionDef(['f64'], *instructions), # start func
         ),
     )
 

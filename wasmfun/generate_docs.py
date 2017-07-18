@@ -76,6 +76,7 @@ lines.append('')
 ## OPCODES
 
 lines += ['## WASM opcodes', '']
+lines += ['See `wasmfun.I` for an autocompletable structure representing all opcodes.', '']
 
 for key in wf.OPCODES:
     lines.append('* `%s`' % key)

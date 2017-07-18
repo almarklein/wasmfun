@@ -110,6 +110,8 @@ really just come after it (so it only allows semantic sugar for blocks and loops
 
 ## WASM opcodes
 
+See `wasmfun.I` for an autocompletable structure representing all opcodes.
+
 * `unreachable`
 * `nop`
 * `block`
@@ -254,28 +256,28 @@ really just come after it (so it only allows semantic sugar for blocks and loops
 * `f64.min`
 * `f64.max`
 * `f64.copysign`
-* `i32.wrap/i64`
-* `i32.trunc_s/f32`
-* `i32.trunc_u/f32`
-* `i32.trunc_s/f64`
-* `i32.trunc_u/f64`
-* `i64.extend_s/i32`
-* `i64.extend_u/i32`
-* `i64.trunc_s/f32`
-* `i64.trunc_u/f32`
-* `i64.trunc_s/f64`
-* `i64.trunc_u/f64`
-* `f32.convert_s/i32`
-* `f32.convert_u/i32`
-* `f32.convert_s/i64`
-* `f32.convert_u/i64`
-* `f32.demote/f64`
-* `f64.convert_s/i32`
-* `f64.convert_u/i32`
-* `f64.convert_s/i64`
-* `f64.convert_u/i64`
-* `f64.promote/f32`
-* `i32.reinterpret/f32`
-* `i64.reinterpret/f64`
-* `f32.reinterpret/i32`
-* `f64.reinterpret/i64`
+* `i32.wrap_i64`
+* `i32.trunc_s_f32`
+* `i32.trunc_u_f32`
+* `i32.trunc_s_f64`
+* `i32.trunc_u_f64`
+* `i64.extend_s_i32`
+* `i64.extend_u_i32`
+* `i64.trunc_s_f32`
+* `i64.trunc_u_f32`
+* `i64.trunc_s_f64`
+* `i64.trunc_u_f64`
+* `f32.convert_s_i32`
+* `f32.convert_u_i32`
+* `f32.convert_s_i64`
+* `f32.convert_u_i64`
+* `f32.demote_f64`
+* `f64.convert_s_i32`
+* `f64.convert_u_i32`
+* `f64.convert_s_i64`
+* `f64.convert_u_i64`
+* `f64.promote_f32`
+* `i32.reinterpret_f32`
+* `i64.reinterpret_f64`
+* `f32.reinterpret_i32`
+* `f64.reinterpret_i64`
