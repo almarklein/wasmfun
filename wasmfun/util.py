@@ -40,10 +40,15 @@ def export_wasm_example(filename, code, wasm):
     """ Generate an html file for the given code and wasm module.
     """
     
-    if not isinstance(wasm, Module):
-        raise TypeError('export_wasm_example() expects an wasm module')
+    if isinstance(wasm, Module):
+        wasm = wasm.to_bytes()
+    elif isinstance(wasm, bytes):
+        if not wasm.startswith(b'\x00asm'):
+            raise ValueError('export_wasm_example() given bytes do not look like a wasm module.')
+    else:
+        raise TypeError('export_wasm_example() expects a wasm module or bytes.')
     
-    wasm_text = str(list(wasm.to_bytes()))  # [0, 1, 12, ...]
+    wasm_text = str(list(wasm))  # [0, 1, 12, ...]
     
     fname = os.path.basename(filename).rsplit('.', 1)[0]
     
@@ -72,11 +77,15 @@ def run_wasm_in_node(wasm):
     Just make sure that your module has a main function.
     """
     
-    if not isinstance(wasm, Module):
-        raise TypeError('run_wasm_in_node() expects an wasm module')
+    if isinstance(wasm, Module):
+        wasm = wasm.to_bytes()
+    elif isinstance(wasm, bytes):
+        if not wasm.startswith(b'\x00asm'):
+            raise ValueError('run_wasm_in_node() given bytes do not look like a wasm module.')
+    else:
+        raise TypeError('run_wasm_in_node() expects a wasm module or bytes.')
     
-    
-    wasm_text = str(list(wasm.to_bytes()))  # [0, 1, 12, ...]
+    wasm_text = str(list(wasm))  # [0, 1, 12, ...]
     
     # Read templates
     src_filename_js = os.path.join(os.path.dirname(__file__), 'template.js')
