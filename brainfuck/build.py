@@ -12,7 +12,7 @@ for fname in os.listdir('.'):
         code = open(fname, 'rb').read().decode()
         wasm = brainfuck2wasm(code)
         
-        print('%s nbytes: %i' %(fname, len(wasm.to_binary())))
+        print('%s nbytes: %i' %(fname, len(wasm.to_bytes())))
         wasm_name = fname.replace('example', 'brainfuck').replace('.bf', '.html')
-        wf.export_wasm_example(wasm_name, code, wasm.to_binary())
-        wf.run_wasm_in_node(wasm.to_binary())
+        wf.export_wasm_example(wasm_name, code, wasm)
+        wf.run_wasm_in_node(wasm)

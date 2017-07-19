@@ -34,8 +34,8 @@ ast.show()
 print('---')
 wasm = compile(ast)
 wasm.show()
-print('nbytes:', len(wasm.to_binary()))
+print('nbytes:', len(wasm.to_bytes()))
 
 
-wf.run_wasm_in_node(wasm.to_binary())
-wf.export_wasm_example('zoof1.html', EXAMPLE, wasm.to_binary())
+wf.run_wasm_in_node(wasm)
+wf.export_wasm_example('zoof1.html', EXAMPLE, wasm)

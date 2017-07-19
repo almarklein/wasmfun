@@ -6,6 +6,8 @@ import os
 import tempfile
 import subprocess
 
+from .fields import Module
+
 
 __all__ = ['inspect_bytes_at', 'hexdump', 'export_wasm_example', 'run_wasm_in_node']
 
@@ -38,7 +40,10 @@ def export_wasm_example(filename, code, wasm):
     """ Generate an html file for the given code and wasm module.
     """
     
-    wasm_text = str(list(wasm))  # [0, 1, 12, ...]
+    if not isinstance(wasm, Module):
+        raise TypeError('export_wasm_example() expects an wasm module')
+    
+    wasm_text = str(list(wasm.to_bytes()))  # [0, 1, 12, ...]
     
     fname = os.path.basename(filename).rsplit('.', 1)[0]
     
@@ -67,7 +72,11 @@ def run_wasm_in_node(wasm):
     Just make sure that your module has a main function.
     """
     
-    wasm_text = str(list(wasm))  # [0, 1, 12, ...]
+    if not isinstance(wasm, Module):
+        raise TypeError('run_wasm_in_node() expects an wasm module')
+    
+    
+    wasm_text = str(list(wasm.to_bytes()))  # [0, 1, 12, ...]
     
     # Read templates
     src_filename_js = os.path.join(os.path.dirname(__file__), 'template.js')

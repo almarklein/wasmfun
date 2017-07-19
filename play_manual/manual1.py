@@ -65,9 +65,9 @@ root = wf.Module(
 print(root)
 root.show()
 
-bb = root.to_binary()
+bb = root.to_bytes()
 print(bb)
 wf.hexdump(bb)
 
-wf.run_wasm_in_node(bb)
-wf.export_wasm_example(__file__[:-3] + '.html', root.to_text(), bb)
+wf.run_wasm_in_node(root)
+wf.export_wasm_example(__file__[:-3] + '.html', root.to_text(), root)

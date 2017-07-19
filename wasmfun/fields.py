@@ -104,7 +104,7 @@ class Field:
     def __repr__(self):
         return '<%s-field>' % self.__class__.__name__
 
-    def to_binary(self):
+    def to_bytes(self):
         f = BytesIO()
         self.to_file(f)
         return f.getvalue()

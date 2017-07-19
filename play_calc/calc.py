@@ -98,7 +98,7 @@ def wasmify(ast):
 def compile(text):
     """ Compile the text into WASM binary.
     """
-    return wasmify(parse(tokenize(text))).to_binary()
+    return wasmify(parse(tokenize(text)))
 
 
 
