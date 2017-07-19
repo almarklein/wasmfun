@@ -45,7 +45,7 @@ def compile(ast):
             wf.FunctionSig([]),  # start func
             ),
         wf.ImportSection(
-            wf.Import('js', 'stdout_write', 'function', 0),
+            wf.Import('js', 'print_ln', 'function', 0),
             ),
         wf.FunctionSection(1),  # functions defined in this module have sigs ...
         wf.ExportSection(

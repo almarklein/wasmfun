@@ -14,4 +14,6 @@ for fname in os.listdir('.'):
         
         print('%s nbytes: %i' %(fname, len(wasm.to_binary())))
         wasm_name = fname.replace('example', 'simplepy').replace('.py', '.html')
-        wf.produce_example_html(wasm_name, code, wasm.to_binary())
+        
+        wf.run_wasm_in_node(wasm.to_binary())
+        wf.export_wasm_example(wasm_name, code, wasm.to_binary())

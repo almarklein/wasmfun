@@ -6,45 +6,78 @@
 </head>
 <body>
 
-
 <script>
+/* This code is used to run WASM modules in either Nodejs or the browser.
+   In both cases, a couple of standard functions are provided, e.g. to
+   print text.
+*/
 
-wasm_data = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 18, 4, 96, 1, 124, 0, 96, 1, 124, 0, 96, 2, 124, 124, 1, 124, 96, 0, 0, 2, 30, 2, 2, 106, 115, 5, 97, 108, 101, 114, 116, 0, 0, 2, 106, 115, 12, 115, 116, 100, 111, 117, 116, 95, 119, 114, 105, 116, 101, 0, 1, 3, 3, 2, 2, 3, 7, 7, 1, 3, 97, 100, 100, 0, 2, 8, 1, 3, 10, 58, 2, 18, 0, 68, 0, 0, 0, 0, 0, 0, 69, 64, 16, 1, 32, 0, 32, 1, 160, 11, 37, 1, 1, 124, 3, 64, 32, 0, 16, 1, 68, 0, 0, 0, 0, 0, 0, 240, 63, 32, 0, 160, 34, 0, 68, 0, 0, 0, 0, 0, 0, 36, 64, 99, 13, 0, 11, 11]);
 
-function say(x) {
-    el = document.getElementById('status');
-    el.innerHTML += '<br>' + x;
+var wasm_data = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 18, 4, 96, 1, 124, 0, 96, 1, 124, 0, 96, 2, 124, 124, 1, 124, 96, 0, 0, 2, 26, 2, 2, 106, 115, 5, 97, 108, 101, 114, 116, 0, 0, 2, 106, 115, 8, 112, 114, 105, 110, 116, 95, 108, 110, 0, 1, 3, 3, 2, 2, 3, 7, 7, 1, 3, 97, 100, 100, 0, 2, 8, 1, 3, 10, 58, 2, 18, 0, 68, 0, 0, 0, 0, 0, 0, 69, 64, 16, 1, 32, 0, 32, 1, 160, 11, 37, 1, 1, 124, 3, 64, 32, 0, 16, 1, 68, 0, 0, 0, 0, 0, 0, 240, 63, 32, 0, 160, 34, 0, 68, 0, 0, 0, 0, 0, 0, 36, 64, 99, 13, 0, 11, 11]);
+
+var is_node = typeof window === 'undefined';
+
+/* Define functions to provide to the WASM module. */
+
+function print_ln(x) {
+    if (is_node) {
+        process.stdout.write(x + '\n');
+    } else {
+        var el = document.getElementById('status');
+        el.innerHTML += String(x).replace('\n', '<br>') + '<br>';
+        console.log(x);
+    }
 }
 
-var pending_str = '';
+function print_charcode(i) {
+    var c = String.fromCharCode(i);
+    if (is_node) {
+        process.stdout.write(c);
+    } else {
+        if (c == '\n') { c = '<br>'; }
+        el = document.getElementById('status');
+        el.innerHTML += c;
+    }
+}
 
-function say_charcode(i) {
-    c = String.fromCharCode(i);
-    if (c == '\n') { c = '<br>'; }
-    el = document.getElementById('status');
-    el.innerHTML += c;
+function alert(x) {
+    if (is_node) {
+        console.error(x);
+    } else {
+        window.alert(x);
+    }
 }
 
 function perf_counter() {
-    return performance.now()*1e-3;
+    if (is_node) {
+        var t = process.hrtime();
+        return t[0] + t[1] * 1e-9;
+    } else {
+        return performance.now() * 1e-3;
+    }
 }
 
+/* Pack importable funcs into a dict */
+
 var providedfuncs = {
+    print_ln: print_ln,
+    print_charcode: print_charcode,
     alert: alert,
-    stdout_write: say,
-    stdout_write_charcode: say_charcode,
     perf_counter: perf_counter,
 };
 
 
-window.onload = function() {
-    say('Compiling wasm module')
-    module_ = new WebAssembly.Module(wasm_data);
-    say('Initializing wasm module')
-    say('Result: ');
-    module = new WebAssembly.Instance(module_, {js: providedfuncs});
+function compile_my_wasm() {
+    print_ln('Compiling wasm module');
+    var module_ = new WebAssembly.Module(wasm_data);
+    print_ln('Initializing wasm module');
+    print_ln('Result:');
+    var module = new WebAssembly.Instance(module_, {js: providedfuncs});
+    print_ln('\n');  // flush
+    
 }
 
+window.onload = compile_my_wasm;
 </script>
 
 
@@ -62,7 +95,7 @@ Module(
     )
     ImportSection(
         Import('js', 'alert', 'function', 0)
-        Import('js', 'stdout_write', 'function', 1)
+        Import('js', 'print_ln', 'function', 1)
     )
     FunctionSection(2, 3)
     ExportSection(

@@ -44,7 +44,7 @@ root = wf.Module(
         ),
     wf.ImportSection(
         wf.Import('js', 'alert', 'function', 0),
-        wf.Import('js', 'stdout_write', 'function', 1),
+        wf.Import('js', 'print_ln', 'function', 1),
         ),
     wf.FunctionSection(2, 3),
     wf.ExportSection(
@@ -69,4 +69,5 @@ bb = root.to_binary()
 print(bb)
 wf.hexdump(bb)
 
-wf.produce_example_html(__file__[:-3] + '.html', root.to_text(), bb)
+wf.run_wasm_in_node(bb)
+wf.export_wasm_example(__file__[:-3] + '.html', root.to_text(), bb)

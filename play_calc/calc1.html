@@ -6,45 +6,78 @@
 </head>
 <body>
 
-
 <script>
+/* This code is used to run WASM modules in either Nodejs or the browser.
+   In both cases, a couple of standard functions are provided, e.g. to
+   print text.
+*/
 
-wasm_data = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 8, 2, 96, 0, 0, 96, 1, 124, 0, 2, 19, 1, 2, 106, 115, 12, 115, 116, 100, 111, 117, 116, 95, 119, 114, 105, 116, 101, 0, 1, 3, 2, 1, 0, 8, 1, 1, 10, 75, 1, 73, 0, 68, 0, 0, 0, 0, 0, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 36, 64, 160, 68, 0, 0, 0, 0, 0, 0, 0, 64, 161, 68, 0, 0, 0, 0, 0, 0, 28, 64, 162, 68, 0, 0, 0, 0, 0, 0, 0, 64, 163, 68, 0, 0, 0, 0, 0, 0, 28, 64, 161, 68, 0, 0, 0, 0, 0, 0, 0, 64, 162, 16, 0, 11]);
 
-function say(x) {
-    el = document.getElementById('status');
-    el.innerHTML += '<br>' + x;
+var wasm_data = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 8, 2, 96, 0, 0, 96, 1, 124, 0, 2, 15, 1, 2, 106, 115, 8, 112, 114, 105, 110, 116, 95, 108, 110, 0, 1, 3, 2, 1, 0, 8, 1, 1, 10, 75, 1, 73, 0, 68, 0, 0, 0, 0, 0, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 36, 64, 160, 68, 0, 0, 0, 0, 0, 0, 0, 64, 161, 68, 0, 0, 0, 0, 0, 0, 28, 64, 162, 68, 0, 0, 0, 0, 0, 0, 0, 64, 163, 68, 0, 0, 0, 0, 0, 0, 28, 64, 161, 68, 0, 0, 0, 0, 0, 0, 0, 64, 162, 16, 0, 11]);
+
+var is_node = typeof window === 'undefined';
+
+/* Define functions to provide to the WASM module. */
+
+function print_ln(x) {
+    if (is_node) {
+        process.stdout.write(x + '\n');
+    } else {
+        var el = document.getElementById('status');
+        el.innerHTML += String(x).replace('\n', '<br>') + '<br>';
+        console.log(x);
+    }
 }
 
-var pending_str = '';
+function print_charcode(i) {
+    var c = String.fromCharCode(i);
+    if (is_node) {
+        process.stdout.write(c);
+    } else {
+        if (c == '\n') { c = '<br>'; }
+        el = document.getElementById('status');
+        el.innerHTML += c;
+    }
+}
 
-function say_charcode(i) {
-    c = String.fromCharCode(i);
-    if (c == '\n') { c = '<br>'; }
-    el = document.getElementById('status');
-    el.innerHTML += c;
+function alert(x) {
+    if (is_node) {
+        console.error(x);
+    } else {
+        window.alert(x);
+    }
 }
 
 function perf_counter() {
-    return performance.now()*1e-3;
+    if (is_node) {
+        var t = process.hrtime();
+        return t[0] + t[1] * 1e-9;
+    } else {
+        return performance.now() * 1e-3;
+    }
 }
 
+/* Pack importable funcs into a dict */
+
 var providedfuncs = {
+    print_ln: print_ln,
+    print_charcode: print_charcode,
     alert: alert,
-    stdout_write: say,
-    stdout_write_charcode: say_charcode,
     perf_counter: perf_counter,
 };
 
 
-window.onload = function() {
-    say('Compiling wasm module')
-    module_ = new WebAssembly.Module(wasm_data);
-    say('Initializing wasm module')
-    say('Result: ');
-    module = new WebAssembly.Instance(module_, {js: providedfuncs});
+function compile_my_wasm() {
+    print_ln('Compiling wasm module');
+    var module_ = new WebAssembly.Module(wasm_data);
+    print_ln('Initializing wasm module');
+    print_ln('Result:');
+    var module = new WebAssembly.Instance(module_, {js: providedfuncs});
+    print_ln('\n');  // flush
+    
 }
 
+window.onload = compile_my_wasm;
 </script>
 
 

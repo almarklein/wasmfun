@@ -85,7 +85,7 @@ def wasmify(ast):
             wf.FunctionSig(['f64']),  # import write func
             ),
         wf.ImportSection(
-            wf.Import('js', 'stdout_write', 'function', 1),
+            wf.Import('js', 'print_ln', 'function', 1),
             ),
         wf.FunctionSection(0),
         wf.StartSection(1),
@@ -131,5 +131,7 @@ EXAMPLE2 = """
 
 
 if __name__ == '__main__':
-    wf.produce_example_html('calc1.html', EXAMPLE1, compile(EXAMPLE1))
-    wf.produce_example_html('calc2.html', EXAMPLE2, compile(EXAMPLE2))
+    wf.run_wasm_in_node(compile(EXAMPLE1))
+    wf.export_wasm_example('calc1.html', EXAMPLE1, compile(EXAMPLE1))
+    wf.run_wasm_in_node(compile(EXAMPLE2))
+    wf.export_wasm_example('calc2.html', EXAMPLE2, compile(EXAMPLE2))

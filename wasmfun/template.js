@@ -1,19 +1,10 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>calc2</title>
-<meta charset="utf-8">
-</head>
-<body>
-
-<script>
 /* This code is used to run WASM modules in either Nodejs or the browser.
    In both cases, a couple of standard functions are provided, e.g. to
    print text.
 */
 
 
-var wasm_data = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 8, 2, 96, 0, 0, 96, 1, 124, 0, 2, 15, 1, 2, 106, 115, 8, 112, 114, 105, 110, 116, 95, 108, 110, 0, 1, 3, 2, 1, 0, 8, 1, 1, 10, 95, 1, 93, 0, 68, 0, 0, 0, 0, 0, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 36, 64, 160, 68, 0, 0, 0, 0, 0, 0, 40, 64, 160, 68, 0, 0, 0, 0, 0, 0, 8, 64, 160, 68, 0, 0, 0, 0, 0, 0, 32, 64, 160, 68, 0, 0, 0, 0, 0, 0, 32, 64, 161, 68, 0, 0, 0, 0, 0, 0, 16, 64, 161, 68, 0, 0, 0, 0, 0, 0, 0, 64, 161, 68, 0, 0, 0, 0, 0, 0, 24, 64, 161, 16, 0, 11]);
+WASM_PLACEHOLDER
 
 var is_node = typeof window === 'undefined';
 
@@ -76,38 +67,3 @@ function compile_my_wasm() {
     print_ln('\n');  // flush
     
 }
-
-window.onload = compile_my_wasm;
-</script>
-
-
-<div style='display:flex;'>
-
-<div style='flex: 1;'>
-<h2> Code </h2>
-<pre>
-
-# Income
-+10
-+12
-+3
-+8
-
-# Costs
--8
--4
--2
--6
-
-</pre>
-</div>
-
-<div style='flex: 1;'>
-<h2> Output </h2>
-<div id='status' ></div>
-</div>
-
-</div>
-
-</body>
-</html>

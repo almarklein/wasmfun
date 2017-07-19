@@ -68,7 +68,7 @@ def simplepy2wasm(code):
             wf.FunctionSig([], ['f64']),  # import perf_counter func
             ),
         wf.ImportSection(
-            wf.Import('js', 'stdout_write', 'function', 1),
+            wf.Import('js', 'print_ln', 'function', 1),
             wf.Import('js', 'perf_counter', 'function', 2),
             ),
         wf.FunctionSection(0),  # functions defined in this module have sigs ...
@@ -299,10 +299,10 @@ print(i)
 
 if __name__ == '__main__':
    
-    wf.produce_example_html('simplepy1.html', EXAMPLE1, simplepy2wasm(EXAMPLE1).to_binary())
+    wf.export_wasm_example('simplepy1.html', EXAMPLE1, simplepy2wasm(EXAMPLE1).to_binary())
     
     wasm = simplepy2wasm(EXAMPLE2)
     print(wasm)
-    wf.produce_example_html('simplepy2.html', EXAMPLE2, wasm.to_binary())
+    wf.export_wasm_example('simplepy2.html', EXAMPLE2, wasm.to_binary())
     
     # exec(EXAMPLE2) this takes about 30 s

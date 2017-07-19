@@ -6,45 +6,9 @@
 </head>
 <body>
 
-
 <script>
-
-WASM_PLACEHOLDER
-
-function say(x) {
-    el = document.getElementById('status');
-    el.innerHTML += '<br>' + x;
-}
-
-var pending_str = '';
-
-function say_charcode(i) {
-    c = String.fromCharCode(i);
-    if (c == '\n') { c = '<br>'; }
-    el = document.getElementById('status');
-    el.innerHTML += c;
-}
-
-function perf_counter() {
-    return performance.now()*1e-3;
-}
-
-var providedfuncs = {
-    alert: alert,
-    stdout_write: say,
-    stdout_write_charcode: say_charcode,
-    perf_counter: perf_counter,
-};
-
-
-window.onload = function() {
-    say('Compiling wasm module')
-    module_ = new WebAssembly.Module(wasm_data);
-    say('Initializing wasm module')
-    say('Result: ');
-    module = new WebAssembly.Instance(module_, {js: providedfuncs});
-}
-
+JS_PLACEHOLDER
+window.onload = compile_my_wasm;
 </script>
 
 

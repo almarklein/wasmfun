@@ -65,7 +65,7 @@ def brainfuck2wasm(code):
             wf.FunctionSig(['i32']),  # imported func to write chars
             ),
         wf.ImportSection(
-            wf.Import('js', 'stdout_write_charcode', 'function', 1),
+            wf.Import('js', 'print_charcode', 'function', 1),
             ),
         wf.FunctionSection(0),
         wf.MemorySection((1, 1)),  # 1 page of 64KiB > 30000 minimum for Brainfuck

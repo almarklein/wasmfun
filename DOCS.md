@@ -10,8 +10,13 @@ Inspect bytes at the specified offset.
 Do a hexdump of the given bytes.
 
 
-#### function `produce_example_html(filename, code, wasm)`
-Generate an html file for the given code and wasm.
+#### function `export_wasm_example(filename, code, wasm)`
+Generate an html file for the given code and wasm module.
+
+
+#### function `run_wasm_in_node(wasm)`
+Load a WASM module in node.
+Just make sure that your module has a main function.
 
 
 
