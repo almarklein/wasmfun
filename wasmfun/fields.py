@@ -144,13 +144,104 @@ class Module(Field):
     """ Field representing a module; the toplevel unit of code.
     """
     
-    __slots__ = ['sections']
+    __slots__ = ['sections', 'func_id_to_index']
     
     def __init__(self, *sections):
+        # Process sections, filter out high-level functions
+        self.sections = []
+        has_lowlevel_funcs = False
+        functions = []
+        start_section = None
+        import_section = None
+        export_section = None
         for section in sections:
-            assert isinstance(section, Section)
-        self.sections = sections
-
+            if isinstance(section, (Function, ImportedFuncion)):
+                functions.append(section)
+            elif isinstance(section, Section):
+                self.sections.append(section)
+                if isinstance(section, (TypeSection, CodeSection)):
+                    has_lowlevel_funcs = True
+                elif isinstance(section, StartSection):
+                    start_section = section
+                elif isinstance(section, ImportSection):
+                    import_section = section
+                elif isinstance(section, ExportSection):
+                    export_section = section
+            else:
+                raise TypeError('Module expects a Function, ImportedFunction, or a Section.')
+        
+        # Process high level function desctiptions?
+        if functions and has_lowlevel_funcs:
+            raise TypeError('Module cannot have both Functions/ImportedFunctions and FunctionDefs/FunctionSigs.')
+        elif functions:
+            self._process_functions(functions, start_section, import_section, export_section)
+        
+        # Sort the sections
+        self.sections.sort(key=lambda x: x.id)
+        
+        # Prepare functiondefs
+        for section in reversed(self.sections):
+            if isinstance(section, CodeSection):
+                for funcdef in section.functiondefs:
+                    funcdef.module = self
+                break 
+    
+    def _process_functions(self, functions, start_section, import_section, export_section):
+        
+        # Prepare processing functions. In the order of imported and then defined,
+        # because that's the order of the function index space. We use the function
+        # index also for the signature index, though that's not strictly necessary
+        # (e.g. functions can share a signature).
+        # Function index space is used in, calls, exports, elementes, start function.
+        auto_sigs = []
+        auto_defs = []
+        auto_imports = []
+        auto_exports = []
+        auto_start = None
+        function_index = 0
+        self.func_id_to_index = {}
+        # Process imported functions
+        for func in functions:
+            if isinstance(func, ImportedFuncion):
+                auto_sigs.append(FunctionSig(func.params, func.returns))
+                auto_imports.append(Import(func.modname, func.fieldname, 'function', function_index))
+                if func.export:
+                    auto_exports.append(func.idname, 'function', function_index)
+                self.func_id_to_index[func.idname] = function_index
+                function_index += 1
+        # Process defined functions
+        for func in functions:
+            if isinstance(func, Function):
+                auto_sigs.append(FunctionSig(func.params, func.returns))
+                auto_defs.append(FunctionDef(func.locals, *func.instructions))
+                if func.export:
+                    auto_exports.append(func.idname, 'function', function_index)
+                if func.idname == '$main' and start_section is None:
+                    auto_start = StartSection(function_index)
+                self.func_id_to_index[func.idname] = function_index
+                function_index += 1
+        
+        # Insert auto-generated function sigs and defs
+        self.sections.append(TypeSection(*auto_sigs))
+        self.sections.append(CodeSection(*auto_defs))
+        # Insert auto-generated imports
+        if import_section is None:
+            import_section = ImportSection()
+            self.sections.append(import_section)
+        import_section.imports.extend(auto_imports)
+        # Insert auto-generated exports
+        if export_section is None:
+            export_section = ExportSection()
+            self.sections.append(export_section)
+        export_section.exports.extend(auto_exports)
+        # Insert function section
+        self.sections.append(FunctionSection(*range(len(auto_imports), function_index)))
+        # Insert start section
+        if auto_start is not None:
+            self.sections.append(auto_start)
+        
+        
+        
     def to_text(self):
         return 'Module(\n' + self._get_sub_text(self.sections, True) + '\n)'
     
@@ -159,6 +250,48 @@ class Module(Field):
         f.write(packu32(1))  # version, must be 1 for now
         for section in self.sections:
             section.to_file(f)
+
+
+class Function:
+    """ High-level description of a function. The linking is resolved
+    by the module.
+    """
+    
+    __slots__ = ['idname', 'params', 'returns', 'locals', 'instructions', 'export']
+    
+    def __init__(self, idname, params=None, returns=None, locals=None, instructions=None, export=False):
+        assert isinstance(idname, str)
+        assert isinstance(params, (tuple, list))
+        assert isinstance(returns, (tuple, list))
+        assert isinstance(locals, (tuple, list))
+        assert isinstance(instructions, (tuple, list))
+        self.idname = idname
+        self.params = params
+        self.returns = returns
+        self.locals = locals
+        self.instructions = instructions
+        self.export = bool(export)
+
+
+class ImportedFuncion:
+    """ High-level description of an imported function. The linking is resolved
+    by the module.
+    """
+    
+    __slots__ = ['idname', 'params', 'returns', 'modname', 'fieldname', 'export']
+    
+    def __init__(self, idname, params, returns, modname, fieldname, export=False):
+        assert isinstance(idname, str)
+        assert isinstance(params, (tuple, list))
+        assert isinstance(returns, (tuple, list))
+        assert isinstance(modname, str)
+        assert isinstance(fieldname, str)
+        self.idname = idname
+        self.params = params
+        self.returns = returns
+        self.modname = modname
+        self.fieldname = fieldname
+        self.export = bool(export)
 
 
 ## Section fields
@@ -202,6 +335,7 @@ class TypeSection(Section):
     def __init__(self, *functionsigs):
         for i, functionsig in enumerate(functionsigs):
             assert isinstance(functionsig, FunctionSig)
+            # todo: remove this?
             functionsig.index = i  # so we can resolve the index in Import objects
         self.functionsigs = functionsigs
     
@@ -223,7 +357,7 @@ class ImportSection(Section):
     def __init__(self, *imports):
         for imp in imports:
             assert isinstance(imp, Import)
-        self.imports = imports
+        self.imports = list(imports)
     
     def to_text(self):
         return 'ImportSection(\n' + self._get_sub_text(self.imports, True) + '\n)'
@@ -295,7 +429,7 @@ class MemorySection(Section):
 
 
 class GlobalSection(Section):
-    """ Defines the globals in a module.
+    """ Defines the globals in a module. WIP.
     """
     __slots__ = []
     id = 6
@@ -310,7 +444,7 @@ class ExportSection(Section):
     def __init__(self, *exports):
         for export in exports:
             assert isinstance(export, Export)
-        self.exports = exports
+        self.exports = list(exports)
     
     def to_text(self):
         return 'ExportSection(\n' + self._get_sub_text(self.exports, True) + '\n)'
@@ -340,7 +474,7 @@ class StartSection(Section):
 
 
 class ElementSection(Section):
-    """ What is this again?
+    """ To initialize table elements. WIP.
     """
     __slots__ = []
     id = 9
@@ -428,7 +562,7 @@ class Export(Field):
     """ Export an object defined in this module. The index is the index
     in the corresponding index space (e.g. for functions this is the
     function index space which is basically the concatenation of
-    functions in the import and type sections).
+    functions in the import and code sections).
     """
     
     __slots__ = ['name', 'kind', 'index']
@@ -479,7 +613,7 @@ class FunctionDef(Field):
     Instruction instances or strings/tuples describing the instruction.
     """
     
-    __slots__ = ['locals', 'instructions']
+    __slots__ = ['locals', 'instructions', 'module']
     
     def __init__(self, locals, *instructions):
         for loc in locals:
@@ -493,6 +627,7 @@ class FunctionDef(Field):
                 instruction = Instruction(*instruction)
             assert isinstance(instruction, Instruction)
             self.instructions.append(instruction)
+        self.module = None
     
     def to_text(self):
         s = 'FunctionDef(' + str(list(self.locals)) + '\n'
@@ -516,7 +651,7 @@ class FunctionDef(Field):
             f3.write(packvu32(localentry[0]))  # number of locals of this type
             f3.write(LANG_TYPES[localentry[1]])
         for instruction in self.instructions:
-            instruction.to_file(f3)
+            instruction.to_file(f3, self.module)
         f3.write(b'\x0b')  # end
         body = f3.getvalue()
         f.write(packvu32(len(body)))  # number of bytes in body
@@ -551,15 +686,21 @@ class Instruction(Field):
         else:
             return 'Instruction(' + repr(self.type) + ', ' + subtext + ')'
     
-    def to_file(self, f):
+    def to_file(self, f, m):
         if self.type not in OPCODES:
             raise TypeError('Unknown instruction %r' % self.type)
         
         # Our instruction
         f.write(bytes([OPCODES[self.type]]))
         
+        # Prep args
+        args = self.args
+        if self.type == 'call':
+            if isinstance(args[0], str):
+                args = [m.func_id_to_index[args[0]]]
+        
         # Data comes after
-        for arg in self.args:
+        for arg in args:
             if isinstance(arg, (float, int)):
                 if self.type.startswith('f64.'):
                     f.write(packf64(arg))
@@ -578,9 +719,10 @@ class Instruction(Field):
         
         # Nested instructions
         for instruction in self.instructions:
-            instruction.to_file(f)
+            instruction.to_file(f, m)
 
 
 # Collect field classes
+_exportable_classes = Field, Function, ImportedFuncion
 __all__ = [name for name in globals()
-           if isinstance(globals()[name], type) and issubclass(globals()[name], Field)]
+           if isinstance(globals()[name], type) and issubclass(globals()[name], _exportable_classes)]

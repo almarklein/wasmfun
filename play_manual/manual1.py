@@ -27,7 +27,7 @@ instructions = [
 # to autocompletion, but the latter looks nicer IMO and is more efficient.
 instructions = [
     (I.loop, 'emptyblock'),
-        (I.get_local, 0), (I.call, 1),
+        (I.get_local, 0), (I.call, 'print_ln'),
         (I.f64.const, 1), (I.get_local, 0), (I.f64.add),
         (I.tee_local, 0), (I.f64.const, 10),
         (I.f64.lt), (I.br_if, 0),
@@ -36,30 +36,41 @@ instructions = [
 
 
 root = wf.Module(
-    wf.TypeSection(
-        wf.FunctionSig(['f64']),  # import alert func
-        wf.FunctionSig(['f64']),  # import write func (could share the sig)
-        wf.FunctionSig(['f64', 'f64'], ['f64']), # add func
-        wf.FunctionSig([]),  # start func
-        ),
-    wf.ImportSection(
-        wf.Import('js', 'alert', 'function', 0),
-        wf.Import('js', 'print_ln', 'function', 1),
-        ),
-    wf.FunctionSection(2, 3),
-    wf.ExportSection(
-        wf.Export('add', 'function', 2),
-        ),
-    wf.StartSection(3),
-    wf.CodeSection(
-        wf.FunctionDef([], 
-            ('f64.const', 42), ('call', 1),  # write 42
-            # ('f64.const', 1337), ('call', 0),  # alert 1337
-            ('get_local', 0), ('get_local', 1), ('f64.add'),
-            ),
-        wf.FunctionDef(['f64'], *instructions), # start func
-        ),
+    wf.ImportedFuncion('alert', ['f64'], [], 'js', 'alert'),
+    wf.ImportedFuncion('print_ln', ['f64'], [], 'js', 'print_ln'),
+    wf.Function('add', params=['f64', 'f64'], returns=['f64'], locals=[],
+                instructions=[('get_local', 0), ('get_local', 1), ('f64.add')],
+                ),
+    wf.Function('$main', params=[], returns=[], locals=['f64'],
+                instructions=instructions),
     )
+
+
+# root = wf.Module(
+#     wf.TypeSection(
+#         wf.FunctionSig(['f64']),  # import alert func
+#         wf.FunctionSig(['f64']),  # import write func (could share the sig)
+#         wf.FunctionSig(['f64', 'f64'], ['f64']), # add func
+#         wf.FunctionSig([]),  # start func
+#         ),
+#     wf.ImportSection(
+#         wf.Import('js', 'alert', 'function', 0),
+#         wf.Import('js', 'print_ln', 'function', 1),
+#         ),
+#     wf.FunctionSection(2, 3),
+#     wf.ExportSection(
+#         wf.Export('add', 'function', 2),
+#         ),
+#     wf.StartSection(3),
+#     wf.CodeSection(
+#         wf.FunctionDef([], 
+#             ('f64.const', 42), ('call', 1),  # write 42
+#             # ('f64.const', 1337), ('call', 0),  # alert 1337
+#             ('get_local', 0), ('get_local', 1), ('f64.add'),
+#             ),
+#         wf.FunctionDef(['f64'], *instructions), # start func
+#         ),
+#     )
 
 
 print(root)
