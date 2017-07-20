@@ -80,17 +80,8 @@ def wasmify(ast):
     
     # Put instructions in a the main function of a WASM module
     module = wf.Module(
-        wf.TypeSection(
-            wf.FunctionSig([]),  # start func
-            wf.FunctionSig(['f64']),  # import write func
-            ),
-        wf.ImportSection(
-            wf.Import('js', 'print_ln', 'function', 1),
-            ),
-        wf.FunctionSection(0),
-        wf.StartSection(1),
-        wf.CodeSection(
-            wf.FunctionDef([], *instructions))
+        wf.ImportedFuncion('print_ln', ['f64'], [], 'js', 'print_ln'),
+        wf.Function('$main', [], [], [], instructions),
         )
     return module
 

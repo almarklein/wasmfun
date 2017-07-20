@@ -62,22 +62,9 @@ def simplepy2wasm(code):
     
     # Produce wasm
     module = wf.Module(
-        wf.TypeSection(
-            wf.FunctionSig([]),  # start func
-            wf.FunctionSig(['f64']),  # import write func
-            wf.FunctionSig([], ['f64']),  # import perf_counter func
-            ),
-        wf.ImportSection(
-            wf.Import('js', 'print_ln', 'function', 1),
-            wf.Import('js', 'perf_counter', 'function', 2),
-            ),
-        wf.FunctionSection(0),  # functions defined in this module have sigs ...
-        wf.ExportSection(
-            ),
-        wf.StartSection(2),
-        wf.CodeSection(
-            wf.FunctionDef(locals, *ctx.instructions)
-            ),
+        wf.ImportedFuncion('print_ln', ['f64'], [], 'js', 'print_ln'),
+        wf.ImportedFuncion('perf_counter', [], ['f64'], 'js', 'perf_counter'),
+        wf.Function('$main', [], [], locals, ctx.instructions),
         )
     return module
 

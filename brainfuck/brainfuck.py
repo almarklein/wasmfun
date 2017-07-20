@@ -60,18 +60,9 @@ def brainfuck2wasm(code):
     instructions = _commands2instructions(commands)
     
     module = wf.Module(
-        wf.TypeSection(
-            wf.FunctionSig([]),  # start func
-            wf.FunctionSig(['i32']),  # imported func to write chars
-            ),
-        wf.ImportSection(
-            wf.Import('js', 'print_charcode', 'function', 1),
-            ),
-        wf.FunctionSection(0),
+        wf.ImportedFuncion('print_charcode', ['i32'], [], 'js', 'print_charcode'),
+        wf.Function('$main', [], [], ['i32'], instructions),
         wf.MemorySection((1, 1)),  # 1 page of 64KiB > 30000 minimum for Brainfuck
-        wf.StartSection(1),
-        wf.CodeSection(
-            wf.FunctionDef(['i32'], *instructions)),
         wf.DataSection(),  # no initial data
         )
     return module

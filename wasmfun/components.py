@@ -232,7 +232,7 @@ class Module(WASMComponent):
                 auto_sigs.append(FunctionSig(func.params, func.returns))
                 auto_imports.append(Import(func.modname, func.fieldname, 'function', function_index))
                 if func.export:
-                    auto_exports.append(func.idname, 'function', function_index)
+                    auto_exports.append((func.idname, 'function', function_index))
                 self.func_id_to_index[func.idname] = function_index
                 function_index += 1
         # Process defined functions
@@ -241,7 +241,7 @@ class Module(WASMComponent):
                 auto_sigs.append(FunctionSig(func.params, func.returns))
                 auto_defs.append(FunctionDef(func.locals, *func.instructions))
                 if func.export:
-                    auto_exports.append(func.idname, 'function', function_index)
+                    auto_exports.append((func.idname, 'function', function_index))
                 if func.idname == '$main' and start_section is None:
                     auto_start = StartSection(function_index)
                 self.func_id_to_index[func.idname] = function_index

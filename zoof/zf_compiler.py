@@ -40,20 +40,8 @@ def compile(ast):
     locals = ['f64' for i in ctx.names]
     
     module = wf.Module(
-        wf.TypeSection(
-            wf.FunctionSig(['f64']),  # import write func (could share the sig)
-            wf.FunctionSig([]),  # start func
-            ),
-        wf.ImportSection(
-            wf.Import('js', 'print_ln', 'function', 0),
-            ),
-        wf.FunctionSection(1),  # functions defined in this module have sigs ...
-        wf.ExportSection(
-            ),
-        wf.StartSection(1),
-        wf.CodeSection(
-            wf.FunctionDef(locals, *ctx.instructions)
-            ),
+        wf.ImportedFuncion('print_ln', ['f64'], [], 'js', 'print_ln'),
+        wf.Function('$main', [], [], locals, ctx.instructions),
         )
     
     return module
