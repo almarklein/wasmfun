@@ -6,7 +6,7 @@ import os
 import tempfile
 import subprocess
 
-from .fields import Module
+from .components import Module
 
 
 __all__ = ['inspect_bytes_at', 'hexdump', 'export_wasm_example', 'run_wasm_in_node']

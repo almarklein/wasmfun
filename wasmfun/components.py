@@ -92,8 +92,17 @@ def unsigned_leb128_encode(value):
     return bytes(bb)
 
 
-class Field:
-    """Representation of a field in the WASM S-expression.
+class WASMComponent:
+    """Base class for representing components of a WASM module, from the module
+    to sections and instructions. These components can be shown as text or
+    written as bytes.
+    
+    Methods:
+    * `to_bytes()` - Get the bytes that represent the binary WASM for this component.
+    * `show()` - Print a textual representation of the component.
+    * `to_file(f)` - Write the binary representation of this component to a file.
+    * `to_text()` - Return a textual representation of this component.
+    
     """
     
     __slots__ = []
@@ -102,23 +111,15 @@ class Field:
         pass
     
     def __repr__(self):
-        return '<%s-field>' % self.__class__.__name__
+        return '<WASM-%s>' % self.__class__.__name__
 
-    def to_bytes(self):
-        f = BytesIO()
-        self.to_file(f)
-        return f.getvalue()
-    
-    def to_file(self, f):
-        raise NotImplementedError()
-    
     def _get_sub_text(self, subs, multiline=False):
         # Collect sub texts
         texts = []
         charcount = 0
         haslf = False
         for sub in subs:
-            if isinstance(sub, Field):
+            if isinstance(sub, WASMComponent):
                 text = sub.to_text()
             else:
                 text = repr(sub)
@@ -136,12 +137,37 @@ class Field:
         else:
             return ', '.join(texts)
     
+    def to_bytes(self):
+        """ Get the bytes that represent the binary WASM for this component.
+        """
+        f = BytesIO()
+        self.to_file(f)
+        return f.getvalue()
+    
     def show(self):
+        """ Print a textual representation of the component.
+        """
         print(self.to_text())
+    
+    def to_file(self, f):
+        """ Write the binary representation of this component to a file.
+        Implemented in the subclasses.
+        """
+        raise NotImplementedError()
+    
+    def to_text(self):
+        """ Return a textual representation of this component.
+        Implemented in the subclasses.
+        """
+        raise NotImplementedError()
 
 
-class Module(Field):
-    """ Field representing a module; the toplevel unit of code.
+class Module(WASMComponent):
+    """ Class to represent a WASM module; the toplevel unit of code.
+    The subcomponents of a module are objects that derive from `Section`.
+    It is recommended to provide `Function` and `ImportedFunction` objects,
+    from which the module will polulate the function-related sections, and
+    handle the binding of the function index space.
     """
     
     __slots__ = ['sections', 'func_id_to_index']
@@ -239,9 +265,7 @@ class Module(Field):
         # Insert start section
         if auto_start is not None:
             self.sections.append(auto_start)
-        
-        
-        
+    
     def to_text(self):
         return 'Module(\n' + self._get_sub_text(self.sections, True) + '\n)'
     
@@ -294,10 +318,10 @@ class ImportedFuncion:
         self.export = bool(export)
 
 
-## Section fields
+## Sections
 
 
-class Section(Field):
+class Section(WASMComponent):
     """Base class for module sections.
     """
     
@@ -528,10 +552,10 @@ class DataSection(Section):
             f.write(packvu32(len(chunk[2])))
 
 
-## Non-section fields
+## Non-section components
 
 
-class Import(Field):
+class Import(WASMComponent):
     """ Import objects (from other wasm modules or from the host environment).
     The type argument is an index in the type-section (signature) for funcs
     and a string type for table, memory and global.
@@ -558,7 +582,7 @@ class Import(Field):
             raise RuntimeError('Can only import functions for now')
 
 
-class Export(Field):
+class Export(WASMComponent):
     """ Export an object defined in this module. The index is the index
     in the corresponding index space (e.g. for functions this is the
     function index space which is basically the concatenation of
@@ -584,7 +608,7 @@ class Export(Field):
             raise RuntimeError('Can only export functions for now')
 
 
-class FunctionSig(Field):
+class FunctionSig(WASMComponent):
     """ Defines the signature of a WASM module that is imported or defined in
     this module.
     """
@@ -608,7 +632,7 @@ class FunctionSig(Field):
             f.write(LANG_TYPES[rettype])
 
 
-class FunctionDef(Field):
+class FunctionDef(WASMComponent):
     """ The definition (of the body) of a function. The instructions can be
     Instruction instances or strings/tuples describing the instruction.
     """
@@ -658,8 +682,8 @@ class FunctionDef(Field):
         f.write(body)
 
 
-class Instruction(Field):
-    """ Class for all instruction fields. Can have nested instructions, which
+class Instruction(WASMComponent):
+    """ Class ro represent an instruction. Can have nested instructions, which
     really just come after it (so it only allows semantic sugar for blocks and loops.
     """
     
@@ -670,7 +694,7 @@ class Instruction(Field):
         self.args = []
         self.instructions = []
         for arg in args:
-            if isinstance(arg, Field):
+            if isinstance(arg, WASMComponent):
                 assert isinstance(arg, Instruction)
                 self.instructions.append(arg)
             else:
@@ -723,6 +747,6 @@ class Instruction(Field):
 
 
 # Collect field classes
-_exportable_classes = Field, Function, ImportedFuncion
+_exportable_classes = WASMComponent, Function, ImportedFuncion
 __all__ = [name for name in globals()
            if isinstance(globals()[name], type) and issubclass(globals()[name], _exportable_classes)]

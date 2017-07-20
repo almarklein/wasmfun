@@ -22,12 +22,40 @@ Just make sure that your module has a main function.
 
 ## Module building classes
 
-#### class `Field()`
-Representation of a field in the WASM S-expression.
+
+It is recommended to use the `Module`, `Function` and `ImportedFunction`
+classes, and add other sections as needed (`TypeSection`, `CodeSection`
+and `FunctionSection` should not be used in this case, since they are
+auto-generated).
+
+#### class `WASMComponent()`
+Base class for representing components of a WASM module, from the module
+to sections and instructions. These components can be shown as text or
+written as bytes.
+
+Methods:
+* `to_bytes()` - Get the bytes that represent the binary WASM for this component.
+* `show()` - Print a textual representation of the component.
+* `to_file(f)` - Write the binary representation of this component to a file.
+* `to_text()` - Return a textual representation of this component.
 
 
 #### class `Module(*sections)`
-Field representing a module; the toplevel unit of code.
+Class to represent a WASM module; the toplevel unit of code.
+The subcomponents of a module are objects that derive from `Section`.
+It is recommended to provide `Function` and `ImportedFunction` objects,
+from which the module will polulate the function-related sections, and
+handle the binding of the function index space.
+
+
+#### class `Function(idname, params=None, returns=None, locals=None, instructions=None, export=False)`
+High-level description of a function. The linking is resolved
+by the module.
+
+
+#### class `ImportedFuncion(idname, params, returns, modname, fieldname, export=False)`
+High-level description of an imported function. The linking is resolved
+by the module.
 
 
 #### class `Section()`
@@ -59,7 +87,7 @@ WASM pages (64KiB). Only one default memory can exist in the MVP.
 
 
 #### class `GlobalSection()`
-Defines the globals in a module.
+Defines the globals in a module. WIP.
 
 
 #### class `ExportSection(*exports)`
@@ -72,7 +100,7 @@ have zero params and return values.
 
 
 #### class `ElementSection()`
-What is this again?
+To initialize table elements. WIP.
 
 
 #### class `CodeSection(*functiondefs)`
@@ -94,7 +122,7 @@ and a string type for table, memory and global.
 Export an object defined in this module. The index is the index
 in the corresponding index space (e.g. for functions this is the
 function index space which is basically the concatenation of
-functions in the import and type sections).
+functions in the import and code sections).
 
 
 #### class `FunctionSig(params=(), returns=())`
@@ -108,7 +136,7 @@ Instruction instances or strings/tuples describing the instruction.
 
 
 #### class `Instruction(type, *args)`
-Class for all instruction fields. Can have nested instructions, which
+Class ro represent an instruction. Can have nested instructions, which
 really just come after it (so it only allows semantic sugar for blocks and loops.
 
 

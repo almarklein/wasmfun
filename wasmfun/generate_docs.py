@@ -64,8 +64,15 @@ lines.append('')
 
 lines += ['## Module building classes', '']
 
-for name in wf.fields.__all__:
-    cls = getattr(wf.fields, name)
+lines.append("""
+It is recommended to use the `Module`, `Function` and `ImportedFunction`
+classes, and add other sections as needed (`TypeSection`, `CodeSection`
+and `FunctionSection` should not be used in this case, since they are
+auto-generated).
+""")
+
+for name in wf.components.__all__:
+    cls = getattr(wf.components, name)
     lines.append('#### class `%s`' % make_sig(cls.__init__, cls.__name__))
     lines.append(get_docstring(cls))
     lines.append('')

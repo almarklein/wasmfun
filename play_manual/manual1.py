@@ -24,7 +24,7 @@ instructions = [
 
 
 # These instructions are equivalent. The latter might be easier to write thanks
-# to autocompletion, but the latter looks nicer IMO and is more efficient.
+# to autocompletion, but the former looks nicer IMO
 instructions = [
     (I.loop, 'emptyblock'),
         (I.get_local, 0), (I.call, 'print_ln'),
@@ -35,6 +35,7 @@ instructions = [
     ]
 
 
+# Compose functions into a module
 root = wf.Module(
     wf.ImportedFuncion('alert', ['f64'], [], 'js', 'alert'),
     wf.ImportedFuncion('print_ln', ['f64'], [], 'js', 'print_ln'),
@@ -46,6 +47,10 @@ root = wf.Module(
     )
 
 
+# For reference, one could also write it like this, using an explicit TypeSection
+# and CodeSection. It needs more work to get the binding right, which in the above
+# is done automatically.
+#
 # root = wf.Module(
 #     wf.TypeSection(
 #         wf.FunctionSig(['f64']),  # import alert func
@@ -65,7 +70,6 @@ root = wf.Module(
 #     wf.CodeSection(
 #         wf.FunctionDef([], 
 #             ('f64.const', 42), ('call', 1),  # write 42
-#             # ('f64.const', 1337), ('call', 0),  # alert 1337
 #             ('get_local', 0), ('get_local', 1), ('f64.add'),
 #             ),
 #         wf.FunctionDef(['f64'], *instructions), # start func
