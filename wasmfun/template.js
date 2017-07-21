@@ -14,7 +14,7 @@ function print_ln(x) {
     if (is_node) {
         process.stdout.write(x + '\n');
     } else {
-        var el = document.getElementById('status');
+        var el = document.getElementById('wasm_output');
         el.innerHTML += String(x).replace('\n', '<br>') + '<br>';
         console.log(x);
     }
@@ -26,14 +26,14 @@ function print_charcode(i) {
         process.stdout.write(c);
     } else {
         if (c == '\n') { c = '<br>'; }
-        el = document.getElementById('status');
+        var el = document.getElementById('wasm_output');
         el.innerHTML += c;
     }
 }
 
 function alert(x) {
     if (is_node) {
-        console.error(x);
+        process.stdout.write('ALERT: ' + x);
     } else {
         window.alert(x);
     }

@@ -9,7 +9,8 @@ import subprocess
 from .components import Module
 
 
-__all__ = ['inspect_bytes_at', 'hexdump', 'export_wasm_example', 'run_wasm_in_node']
+__all__ = ['inspect_bytes_at', 'hexdump', 'export_wasm_example',
+           'run_wasm_in_node', 'run_wasm_in_notebook']
 
 
 def inspect_bytes_at(bb, offset):
@@ -70,6 +71,43 @@ def export_wasm_example(filename, code, wasm):
     with open(filename, 'wb') as f:
         f.write(html.encode())
     print('Wrote example HTML to', filename)
+
+
+_nb_output = 0
+
+def run_wasm_in_notebook(wasm):
+    """ Load a WASM module in the Jupyter notebook.
+    """
+    from IPython.display import display, HTML, Javascript
+    
+    if isinstance(wasm, Module):
+        wasm = wasm.to_bytes()
+    elif isinstance(wasm, bytes):
+        if not wasm.startswith(b'\x00asm'):
+            raise ValueError('run_wasm_in_notebook() given bytes do not look like a wasm module.')
+    else:
+        raise TypeError('run_wasm_in_notebook() expects a wasm module or bytes.')
+    
+    wasm_text = str(list(wasm))  # [0, 1, 12, ...]
+    
+    # Read templates
+    src_filename_js = os.path.join(os.path.dirname(__file__), 'template.js')
+    with open(src_filename_js, 'rb') as f:
+        js = f.read().decode()
+    
+    # Get id
+    global _nb_output
+    _nb_output += 1
+    id = 'wasm_output_%u' % _nb_output
+    
+    # Produce JS
+    js = js.replace('wasm_output', id)
+    js = js.replace('WASM_PLACEHOLDER', 'var wasm_data = new Uint8Array(' + wasm_text + ');')
+    js = '(function() {\n%s;\ncompile_my_wasm();\n})();' % js
+    
+    # Output in current cell
+    display(HTML("<div style='border: 2px solid blue;' id='%s'></div>" % id))
+    display(Javascript(js))
 
 
 def run_wasm_in_node(wasm):
