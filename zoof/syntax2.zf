@@ -1,0 +1,42 @@
+# Maybe, use curly braces for functions and other blocks that have strong scopes
+# and indentation for the rest. Let's not mix braces and "end".
+
+
+func foo(x) {
+
+}
+
+x.sort(key=func (x) {-x})
+
+
+do {
+    
+    asd
+    asd
+    as
+}
+
+
+if foo
+   bar()
+   
+bar = if foo do 3 else 5
+
+if foo do bar = 3
+
+# Problem stacking expressions on one line: to what if does the else belong?
+if foo do if bar do 4 else 6
+
+x = if foo
+    4
+else
+    6
+
+
+   
+
+loop i in 1:10
+    foo(i)
+
+loop i in 1:10 do foo(i)
+
