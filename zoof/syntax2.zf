@@ -40,3 +40,19 @@ loop i in 1:10
 
 loop i in 1:10 do foo(i)
 
+
+" foo applies foo stuff to bar
+" And then does the same to bla
+func foo () {
+
+}
+
+FUN = " kjbasdas
+      " Hello
+      " aasdas
+      " asd
+    
+    mooe
+
+sdf
+

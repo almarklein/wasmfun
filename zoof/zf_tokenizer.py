@@ -8,7 +8,7 @@ chars, etc.), which are then turned into an AST by the parser.
 
 keywords = ('import', 'export',
             'type', 'func', 'return', 'end',
-            'for', 'while', 'if', 'elseif', 'else', 'with', 'do', 'done', 'continue', 'break',
+            'loop', 'while', 'if', 'elseif', 'else', 'with', 'do', 'continue', 'break',
             'try', 'catch', 'finally', 'throw', 'assert',
             'in', 'as',
             'and', 'or', 'not',
@@ -112,20 +112,33 @@ def find_rest_of_number(text, i):
 
 
 def find_rest_of_string(text, i):
+    # Returns (end-index, lines-skipped)
     escape = False
+    lines_skipped = 0
     i_lim = len(text) - 1
     while i < i_lim:
         i += 1
         c = text[i]
         if c == '\n':
-            return i
+            lines_skipped += 1
+            j = i
+            while j < i_lim:
+                j += 1
+                c = text[j]
+                if c in ' \t':
+                    continue
+                elif c == '"':
+                    i = j + 1  # string continues on next line
+                    break
+                else:
+                    return i, lines_skipped  # string runs to end of line
         elif escape:
             continue
         elif c == '"':
             break
         elif c == '\\':
             escape = True
-    return i + 1
+    return i + 1, lines_skipped
 
 
 def find_rest_of_multiline_string(text, i):
@@ -152,8 +165,7 @@ def find_rest_of_multiline_string(text, i):
 
 def tokenize(text):
     """ Find tokens in the given text. This function never raises an exception
-    (unless it contains a bug), e.g. it can process unterminated strings and
-    invalid characters.
+    (unless it contains a bug), e.g. it can process invalid characters.
     """
     
     i = 0
@@ -167,8 +179,8 @@ def tokenize(text):
         
         c = text[i]
         
-        if c in ' \t\r':
-            i += 1 # todo: better deal with \r
+        if c in ' \t':
+            i += 1  # Note that \r will end up as an unknown character
         
         elif c == '\n':
             if tokens and tokens[-1].type != 'endofstatement':
@@ -205,20 +217,12 @@ def tokenize(text):
             i = i2
         
         elif c == '"':
-            if i + 2 < text_len and text[i:i+3] == '"""':
-                i2 = find_rest_of_multiline_string(text, i)
-                token = Token('multilinestring', linenr, i - linestart, text[i:i2])
-                if token.text[:3] != token.text[-3:]:
-                    token.type = 'unterminated_' + token.type
-            else:
-                i2 = find_rest_of_string(text, i)
-                token = Token('string', linenr, i - linestart, text[i:i2])
-                if token.text[0] != token.text[-1]:
-                    token.type = 'unterminated_' + token.type
+            i2, lines_skipped = find_rest_of_string(text, i)
+            token = Token('string', linenr, i - linestart, text[i:i2])
             tokens.append(token)
-            if '\n' in token.text:
-                linenr += token.text.count('\n')
-                linestart = i - len(token.text.rsplit('\n', 1)[0])
+            if lines_skipped > 0:
+                linenr += lines_skipped
+                linestart = i - len(token.text.rsplit('\n', 1)[-1])
             i = i2
         
         elif c in '([{}])':
@@ -262,14 +266,21 @@ if __name__ == '__main__':
     done ? @  `
     print("asdasd")
     
-    """
-    Func x does stuff
-    """
+    "normal string"
+    "multiline-single
+    
+    "multiline
+    "multi
+    
+    " Func x does stuff
+    " to x
     func xx()
     foo()
     end
     
     a += 3 >= 4
+    
+    
     
     '''
     
