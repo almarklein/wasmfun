@@ -7,7 +7,7 @@ chars, etc.), which are then turned into an AST by the parser.
 """
 
 keywords = ('import', 'export',
-            'type', 'func', 'return', 'end',
+            'type', 'func', 'return',
             'loop', 'while', 'if', 'elseif', 'else', 'with', 'do', 'continue', 'break',
             'try', 'catch', 'finally', 'throw', 'assert',
             'in', 'as',
@@ -19,7 +19,7 @@ maybe_keywords = 'none', 'has', 'const', 'global', 'nonlocal', 'local', 'switch'
 
 #operators = '=+*/^%!&|><'
 operators = ('+', '-', '*', '/', '^', '%', '!', '&', '|', '>', '<',
-             '==', '>=', '<=',
+             '==', '>=', '<=', '~',
             )
 assignment_operators = '=', '+=', '-=', '*=', '/='
 operators += assignment_operators
@@ -29,7 +29,7 @@ class TYPES:
     _all = ('comment', 'identifier', 'keyword', 'number', 'string',
             'multilinestring', 'endofstatement', 'bracket', 'attr', 'sep',
             'operator', 'assign',
-            'unterminated_string', 'unterminated_multilinestring', 'unknown'
+            'unknown'
             )
 
 for token_name in TYPES._all:
