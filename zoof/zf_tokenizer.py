@@ -27,9 +27,9 @@ operators += assignment_operators
 
 class TYPES:
     _all = ('comment', 'identifier', 'keyword', 'number', 'string',
-            'multilinestring', 'endofstatement', 'bracket', 'attr', 'sep',
+            'multilinestring', 'statementsep', 'bracket', 'attr', 'sep',
             'operator', 'assign',
-            'unknown'
+            'linestart', 'unknown'
             )
 
 for token_name in TYPES._all:
@@ -64,6 +64,18 @@ class Token:
         if len(text) > 50:
             text = 'too long'
         return '<Token %s %i:%i %s>' % (self.type, self.linenr, self.column, text)
+
+
+def find_rest_of_indent(text, i):
+    i_lim = len(text) - 1
+    while i < i_lim:
+        i += 1
+        c = text[i]
+        if c == '\n':
+            return i, False
+        elif c not in ' \t':
+            return i, True
+    return i_lim + 1, False  # eof
 
 
 def find_rest_of_comment(text, i):
@@ -175,23 +187,27 @@ def tokenize(text):
     tokens = []
     token = None
     
+    # Process initial indent
+    i, indent = find_rest_of_indent(text, -1)
+    if indent:
+        tokens.append(Token('linestart', linenr, 1, text[:i]))
+    
     while i < text_len:
         
         c = text[i]
         
         if c in ' \t':
             i += 1  # Note that \r will end up as an unknown character
-        
         elif c == '\n':
-            if tokens and tokens[-1].type != 'endofstatement':
-                tokens.append(Token('endofstatement', linenr, i - linestart, '\n'))
             linenr += 1
             linestart = i  # count from 1 
-            i += 1
+            i2, indent = find_rest_of_indent(text, i)
+            if indent:
+                tokens.append(Token('linestart', linenr, 1, text[linestart+1:i2]))
+            i = i2
         
         elif c == ';':
-            if tokens and tokens[-1].type != 'endofstatement':
-                tokens.append(Token('endofstatement', linenr, i - linestart, ';'))
+            tokens.append(Token('statementsep', linenr, i - linestart, ';'))
             i += 1
         
         elif c == '#':
@@ -280,7 +296,8 @@ if __name__ == '__main__':
     
     a += 3 >= 4
     
-    
+    loop i in 1:10
+        foo()
     
     '''
     
