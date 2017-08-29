@@ -134,11 +134,11 @@ def _compile_expr(node, ctx, push_stack):
         elif isinstance(op, ast.NotEq):
             ctx.instructions.append(('f64.ne'))
         elif isinstance(op, ast.Gt):
-            ctx.instructions.append(('f64.qt'))
+            ctx.instructions.append(('f64.gt'))
         elif isinstance(op, ast.Lt):
             ctx.instructions.append(('f64.lt'))
         elif isinstance(op, ast.GtE):
-            ctx.instructions.append(('f64.qe'))
+            ctx.instructions.append(('f64.ge'))
         elif isinstance(op, ast.LtE):
             ctx.instructions.append(('f64.le'))
         else:
