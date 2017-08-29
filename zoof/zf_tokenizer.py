@@ -29,7 +29,7 @@ class TYPES:
     _all = ('comment', 'identifier', 'keyword', 'number', 'string',
             'multilinestring', 'statementsep', 'bracket', 'attr', 'sep',
             'operator', 'assign',
-            'linestart', 'unknown'
+            'linestart', 'eof', 'unknown'
             )
 
 for token_name in TYPES._all:
@@ -268,9 +268,10 @@ def tokenize(text):
             tokens.append(token)
             i += 1
     
+    tokens.append(Token('eof', linenr, i, ''))
     return tokens
 
-
+      
 if __name__ == '__main__':
     
     EXAMPLE = '''
@@ -298,6 +299,7 @@ if __name__ == '__main__':
     
     loop i in 1:10
         foo()
+    
     
     '''
     
