@@ -30,6 +30,10 @@ for i in ii:
 py = """
 if 4 > 5:
     print(0)
+elif 4 > 5:
+    print(1)
+else:
+    print(2)
 """
 
 m = simplepy2wasm(py)

@@ -222,11 +222,19 @@ def _compile_expr(node, ctx, push_stack):
             ctx.instructions.append(i)
         ctx.pop_block('while')
     
+    elif isinstance(node, ast.Pass):
+        pass
+    
     elif isinstance(node, ast.Continue):
         ctx.instructions.append(('br', ctx.get_block_level()))
     
     elif isinstance(node, ast.Break):
         ctx.instructions.append(('br', ctx.get_block_level() + 1))
+    
+    elif isinstance(node, ast.Return):
+        assert node.value is not None
+        _compile_expr(node.value, ctx, True)
+        ctx.instructions.append(('return', ))
     
     elif isinstance(node, ast.Call):
         if not isinstance(node.func, ast.Name):
