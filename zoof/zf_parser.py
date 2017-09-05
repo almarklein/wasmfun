@@ -21,7 +21,18 @@ class ZoofSyntaxError(SyntaxError):
     
     def __init__(self, token, msg):
         at = ' at line %i:%i' % (token.linenr, token.column)
-        super().__init__(msg + at)
+        extra = self.get_example(token) or ''
+        super().__init__(msg + at + extra)
+    
+    def get_example(self, token):
+        # todo: cache files
+        if token.filename and os.path.isfile(token.filename):
+            lines = open(token.filename, 'rb').read().decode().splitlines()
+            if token.linenr > 0 and token.linenr <= len(lines):
+                extra = '\n    ' + lines[token.linenr - 1] + '\n   ' + ' ' * token.column + '^'
+                if token.linenr > 1:
+                    extra = '\n    ' + lines[token.linenr - 2] + extra
+                return extra
 
 
 class Expr:
@@ -204,8 +215,7 @@ class RecursiveDescentParser:
             return self.next_token()
         else:
             expected = ', '.join(expected_types)
-            self.error(
-                'Expected {0}, got "{1}"'.format(expected, self.peak))
+            self.error(f'Expected {expected}, got "{self.peak}"')
 
     def next_token(self):
         """ Advance to the next token, returning the current.
@@ -253,7 +263,7 @@ class ZoofParser(RecursiveDescentParser):
         i = self.token_index
         if self.peak == TYPES.linestart:
             i += 1
-        if i < len(self.tokens):
+        if i < len(self.tokens) - 1:
             if self.tokens[i].type == TYPES.keyword and self.tokens[i].text == kw:
                 self.token_index = i + 1
                 self.token = tokens[self.token_index]
@@ -356,7 +366,8 @@ class ZoofParser(RecursiveDescentParser):
         assert self.peak == TYPES.linestart
         prev_indent = self.indent
         self.indent = indent = len(self.token.text)
-        assert indent > prev_indent
+        if indent <= prev_indent:
+            self.error('Expected an indentation.')
         
         stacksize = len(self.stack)
         self.push(Expr('block', self.token))
@@ -383,7 +394,7 @@ class ZoofParser(RecursiveDescentParser):
             elif self.peak == TYPES.eof:  # todo: double :/
                 break
             else:
-                self.error('huh')
+                self.error('huh')  # todo: what does this mean?
         
         assert indent == self.indent
         self.indent = prev_indent
@@ -534,14 +545,12 @@ if __name__ == '__main__':
     a += 2
     if a > 2
         b = 1
+        b = 3
     else
-        b += 3
-    
-    if a > 2 do b = 1 else b = 3
-    
+        b = 2
     """
     
-    tokens = tokenize(EXAMPLE2, __file__, 531)
+    tokens = tokenize(EXAMPLE2, __file__, 542)
     
     p = ZoofParser()
     ast = p.parse(tokens)
