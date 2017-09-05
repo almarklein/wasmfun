@@ -4,6 +4,14 @@ reproducable with minimal language requirements (e.g. no regexp) so
 that it can be self-hosting relatively easy. The tokenizer splits
 a code text into tokens (e.g. comments, strings, words, numbers, special
 chars, etc.), which are then turned into an AST by the parser.
+
+Policy wrt comments and whitespace: comments are included as tokens. a linestart
+token is generated for lines that contain non-comment tokens. If the produced
+list of tokens is not empty, the first token will be a linestart token. 
+Unknown characters are wrapped in an unknown token. We do define an eof token
+but this is mostly for internal use in the parser, the tokenizer will never 
+generate it.
+
 """
 
 keywords = ('import', 'export',
@@ -29,7 +37,7 @@ class TYPES:
     _all = ('comment', 'identifier', 'keyword', 'number', 'string',
             'multilinestring', 'statementsep', 'bracket', 'attr', 'sep',
             'operator', 'assign',
-            'linestart', 'eof', 'unknown'
+            'linestart', 'unknown', 'eof',
             )
 
 for token_name in TYPES._all:
@@ -67,59 +75,57 @@ class Token:
 
 
 def find_rest_of_indent(text, i):
-    i_lim = len(text) - 1
-    while i < i_lim:
-        i += 1
+    i += 1
+    while i < len(text):
         c = text[i]
-        if c == '\n':
+        if c in ('\n', '#'):  # empty lines or commented lines do not count
             return i, False
         elif c not in ' \t':
             return i, True
-    return i_lim + 1, False  # eof
+        i += 1
+    return i, False  # eof
 
 
 def find_rest_of_comment(text, i):
-    i_lim = len(text) - 1
-    while i < i_lim:
-        i += 1
+    i += 1
+    while i < len(text):
         c = text[i]
         if c == '\n':
             break
+        i += 1
     return i
 
 
 def find_rest_of_identifier(text, i):
-    i_lim = len(text) - 1
-    while i < i_lim:
-        i += 1
+    i += 1
+    while i < len(text):
         c = text[i]
-        if c.isalnum() or c == '_':
-            continue
-        break
+        if not (c.isalnum() or c == '_'):
+            break
+        i += 1
     return i
 
 
 def find_rest_of_number(text, i):
-    i_lim = len(text) - 1
+    i += 1
     can_have_dot = True
-    while i < i_lim:
-        i += 1
+    while i < len(text):
         c = text[i]
         if c.isdigit():
-            continue
+            pass
         elif c == '.' and can_have_dot:
             can_have_dot = False
-            continue
         elif c in 'Ee':
             can_have_dot = False
-            if i+1 <= i_lim and text[i+1].isdigit():
+            if i + 1 < len(text) and text[i + 1].isdigit():
                 i += 1
-                continue
-            if i+2 <= i_lim and text[i+1] in '-+' and text[i+2].isdigit():
+            elif i + 2 < len(text) and text[i + 1] in '-+' and text[i + 2].isdigit():
                 i += 2
-                continue
+            else:
+                break
+        else:
             break
-        break
+        i += 1
     return i
 
 
@@ -127,16 +133,16 @@ def find_rest_of_string(text, i):
     # Returns (end-index, lines-skipped)
     escape = False
     lines_skipped = 0
-    i_lim = len(text) - 1
-    while i < i_lim:
-        i += 1
+    i += 1
+    while i < len(text):
         c = text[i]
+        i += 1
         if c == '\n':
             lines_skipped += 1
             j = i
-            while j < i_lim:
-                j += 1
+            while j < len(text):
                 c = text[j]
+                j += 1
                 if c in ' \t':
                     continue
                 elif c == '"':
@@ -145,34 +151,33 @@ def find_rest_of_string(text, i):
                 else:
                     return i, lines_skipped  # string runs to end of line
         elif escape:
-            continue
+            pass
         elif c == '"':
             break
         elif c == '\\':
             escape = True
-    return i + 1, lines_skipped
+    return i, lines_skipped
 
 
-def find_rest_of_multiline_string(text, i):
-    escape = False
-    count = 0
-    i += 2
-    i_lim = len(text) - 1
-    while i < i_lim:
-        i += 1
-        c = text[i]
-        if escape:
-            continue
-        elif c == '"':
-            count += 1
-            if count == 3:
-                break
-        elif c == '\\':
-            escape = True
-            count = 0
-        else:
-            count = 0
-    return i + 1
+# def find_rest_of_multiline_string(text, i):
+#     escape = False
+#     count = 0
+#     i += 2
+#     while i < len(text):
+#         i += 1
+#         c = text[i]
+#         if escape:
+#             continue
+#         elif c == '"':
+#             count += 1
+#             if count == 3:
+#                 break
+#         elif c == '\\':
+#             escape = True
+#             count = 0
+#         else:
+#             count = 0
+#     return i + 1
 
 
 def tokenize(text):
@@ -274,7 +279,11 @@ def tokenize(text):
       
 if __name__ == '__main__':
     
-    EXAMPLE = '''
+    EXAMPLE1 = '''
+    a = 3
+    '''
+    
+    EXAMPLE2 = '''
     a.b
     a ; b
     # this is a comment
@@ -306,6 +315,8 @@ if __name__ == '__main__':
     '''
     "a
     "b'''
+    
+    EXAMPLE = EXAMPLE1
     
     print('py')
     for token in tokenize_py(EXAMPLE):

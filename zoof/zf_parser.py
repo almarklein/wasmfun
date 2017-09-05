@@ -31,11 +31,17 @@ class Expr:
     that indicates the "return type". The kind of args depends on the kind of
     expression:
     
-    * block: expressions
+    Expressions that only hold expressions:
+    
+    * block: *expressions
     * assign: target-exp (identifier or tuple), expression
-    * if: expr for test, body-block, else-block
-    * identifier: the name
+    * if: test_exp, body_block, [elseif_test_block, elseif_body], else_block
     * call: expression (often an identifier), arg1-expr, arg2-expr, ...
+    
+    Expressions that hold strings / tokens:
+    
+    * identifier: the name
+    * literal: the text that makes up the literal
     """
     
     KINDS = ['block', 'assign', 'if', 'for', 'do', 'identifier', 'call',
@@ -64,21 +70,71 @@ class Expr:
                 print('    ' * (indent + 1) + e)
 
 
+opcallmap = {'+': 'add', '-': 'sub', '*': 'mul', '/': 'div',
+             '==': 'eq', '>': 'gt', '<': 'lt',
+             }
+
+# ops for which multiple args can be combined into a single call with > 2 args
+multiops = 'add', 'mul', # 'sub', 'div'
+
+
+def _resolve_expressions(expression_chain):
+    """ Given a chain of intermittend expressions and operators, resolve it
+    into single expression by taking priority rules into account.
+    """
+    chain = expression_chain.copy()
+    for ops in [('*', '/'), ('+', '-'), ('==', '>', '<', '>=', '<=')]:
+        i = 0
+        while i < len(chain):
+            if chain[i] in ops:
+                funcname = opcallmap[chain[i]]
+                if i == 0:
+                    # unary
+                    assert isinstance(chain[i+1], Expr)
+                    e = Expr('call', Expr('identifier', funcname), chain[i+1])
+                    chain = [e] + chain[2:]
+                    i += 1
+                elif (funcname in multiops and chain[i-1].kind == 'call' and
+                      chain[i-1].args[0].kind == 'identifier' and chain[i-1].args[0].args[0] == funcname):
+                    # binary +
+                    chain[i-1].args.append(chain[i+1])
+                    chain = chain[:i] + chain[i+2:]
+                    i + 1
+                else:
+                    # binary
+                    assert isinstance(chain[i-1], Expr)
+                    assert isinstance(chain[i+1], Expr)
+                    e = Expr('call', Expr('identifier', funcname), chain[i-1], chain[i+1])
+                    chain = chain[:i-1] + [e] + chain[i+2:]
+                    i += 0
+            else:
+                i += 1
+    assert len(chain) == 1 and isinstance(chain[0], Expr)
+    return chain[0]
+
+
 class RecursiveDescentParser:
     """ Base class for recursive descent parsers """
     
     def __init__(self):
+        self.reset()
+    
+    def reset(self):
+        self.exp = None  # The current expression
         self.token = None  # The current token under cursor
-        self.tokens = None  # Iterable of tokens
-        self._look_ahead = []
-
+        self.tokens = []
+        self.token_index = -1
+        self.stack = []
+        self.pending = []  # todo: check validity each time that we add to it
+        self._look_ahead = []  # todo: I am pretty sure that we can remove look-ahead
+    
     def init_lexer(self, tokens):
         """ Initialize the parser with the given tokens (an iterator) """
-        self.token_index = 0
+        self.reset()
         self.tokens = tokens
-        self.token = self.tokens[self.token_index]
-        self._look_ahead = []
-
+        self.token = Token('eof', 1, 0, '')  # stub token
+        self.next_token()  # set self.token
+    
     def error(self, msg):
         """ Raise an error at the current location """
         raise ZoofSyntaxError(self.token, msg)
@@ -120,11 +176,14 @@ class RecursiveDescentParser:
         if self._look_ahead:
             self.token = self._look_ahead.pop(0)
         else:
-            self.token_index += 1
-            if self.token_index >= len(self.tokens):
-                self.token = Token('eof', self.token.linenr, self.token.column, '')
-            else:
-                self.token = self.tokens[self.token_index]
+            while True:
+                self.token_index += 1
+                if self.token_index >= len(self.tokens):
+                    self.token = Token('eof', self.token.linenr, self.token.column, '')
+                else:
+                    self.token = self.tokens[self.token_index]
+                if self.token.type != TYPES.comment:
+                    break
         return tok
 
     def not_impl(self):  # pragma: no cover
@@ -155,27 +214,20 @@ class RecursiveDescentParser:
         else:
             return self.token
 
-    @property
-    def at_end(self):
-        return self.peak is None
-
 
 class Parser(RecursiveDescentParser):
     """
     """
     
-    def __init__(self):
-        self.reset()
-    
     def reset(self):
-        self.stack = []
-        self.one_liner = False
-        self.exp = None
-        self.pending = []  # todo: check validity each time that we add to it
+        super().reset()
+        # This parser uses whitespace and indentation
         self.indent = 0
+        self.one_liner = False
     
     def push(self, exp):
-        """ Push expression on stack.
+        """ Push expression on the stack.
+        Sets self.exp and a new empty self.pending.
         """
         assert isinstance(exp, Expr)
         self.exp = exp
@@ -185,6 +237,7 @@ class Parser(RecursiveDescentParser):
     
     def pop(self):
         """ Pop expression from stack.
+        Returns current exp and restores self.exp and self.pending.
         """
         assert len(self.pending) == 0
         exp = self.exp  # == self.stack[-1][0]
@@ -196,7 +249,7 @@ class Parser(RecursiveDescentParser):
         return exp
     
     def finish_pending(self):
-        """ Resolve pending expression chain and add to args.
+        """ Resolve pending expression chain and add to self.exp.args.
         """
         if self.pending:
             self.exp.args.append(_resolve_expressions(self.pending))
@@ -206,8 +259,10 @@ class Parser(RecursiveDescentParser):
     def parse(self, tokens):
         """ Parse a series of tokens.
         """
+            
         self.init_lexer(tokens)
-        self.reset()
+        if self.peak == TYPES.eof:
+            return Expr('block')  # because parse_expressions() expects at least one token
         
         root = self.parse_expressions()
         
@@ -215,16 +270,15 @@ class Parser(RecursiveDescentParser):
         if len(self.stack) > 0:
             raise ZoofSyntaxError(token, 'Code is incomplete')
         assert not self.pending
-        #assert not root.args
-        #self.finish_pending()
         return root
     
     ## The parse functions
     
     def parse_expression(self):
         """ Process tokens untill we have a full expression.
+        Pushes one expression on self.exp.args.
         """
-        if self.at_end:
+        if self.peak == TYPES.eof:
             self.error('Unexpected end of file.')
         
         assert len(self.pending) == 0
@@ -257,12 +311,10 @@ class Parser(RecursiveDescentParser):
             elif token_type == TYPES.sep:
                 # Separator for tuples and function arguments
                 raise NotImplementedError()
-            elif token_type == TYPES.comment:
-                pass  # no action needed
             elif token_type == TYPES.unknown:
                 raise ZoofSyntaxError(self.token, 'Unknown token')
-            elif token_type == 'eof':
-                break
+            elif token_type == TYPES.eof:
+                pass
             else:
                 raise ZoofSyntaxError(self.token, 'Unexpected %s token' % token_type)
             
@@ -273,13 +325,14 @@ class Parser(RecursiveDescentParser):
                 else:
                     self.error('Expected an expression, not %s' % self.peak)
             
-            # Can we finish the exression?
+            # Can we finish the expression?
             if self.peak in (TYPES.linestart, TYPES.eof, TYPES.keyword):
                 self.finish_pending()
                 break
     
     def parse_expression_and_wrap(self):
-        """ Pasre expression and wrap it in a block expression.
+        """ Parse expression and wrap it in a block expression.
+        Only to be used from parse_body().
         """
         stacksize = len(self.stack)
         self.push(Expr('block'))
@@ -291,10 +344,13 @@ class Parser(RecursiveDescentParser):
     def parse_expressions(self):
         """ Parse a series of expressions, which are each on a line.
         Does not consume the final (dedented) newline token.
+        There must be at least one expression.
+        Only to be used from parse() or parse_body().
         """
         assert self.peak == TYPES.linestart
         prev_indent = self.indent
         self.indent = indent = len(self.token.text)
+        assert indent > prev_indent
         
         stacksize = len(self.stack)
         self.push(Expr('block'))
@@ -302,9 +358,8 @@ class Parser(RecursiveDescentParser):
         
         while True:
             self.consume(TYPES.linestart)
-            if self.peak == TYPES.comment:
-                self.consume(TYPES.comment)
-            elif self.peak == TYPES.eof:
+            peak = self.peak
+            if self.peak == TYPES.eof:
                 break
             else:
                 self.parse_expression()
@@ -320,7 +375,7 @@ class Parser(RecursiveDescentParser):
                         self.error('Unexpected dedent.')
                     else:
                         break
-            elif self.peak == 'eof':
+            elif self.peak == TYPES.eof:  # todo: double :/
                 break
             else:
                 self.error('huh')
@@ -334,18 +389,20 @@ class Parser(RecursiveDescentParser):
     def parse_body(self, context, need_nl_or_do=True):
         """ Parse the body of a construct, which can be a do with one
         expression, or a newline followed by multiple expressions.
+        Pushes one expression on self.exp.args.
         """
         if self.peak == TYPES.linestart:
-            self.parse_expressions()
+            block = self.parse_expressions()
         elif self.peak_kw == 'do':
             self.one_liner = True
             self.consume(TYPES.keyword)
-            self.parse_expression_and_wrap()
+            block = self.parse_expression_and_wrap()
         elif not need_nl_or_do:
             self.one_liner = True
-            self.parse_expression_and_wrap()
+            block = self.parse_expression_and_wrap()
         else:
             self.error('Expecting newline or do-keyword before body in %s expression.' % context)
+        self.exp.args.append(block)  # similar to what parse_expression does
     
     def consume_if_kw_skip_newline(self, kw):
         i = self.token_index
@@ -359,6 +416,7 @@ class Parser(RecursiveDescentParser):
         return False
     
     def parse_if(self):
+        # todo: put elif flat in args or stack in a tree of else-if nodes like Py does? What does Julia do?
         self.push(Expr('if'))
         assert self.consume(TYPES.keyword).text == 'if'
         # Get test-expression and corresponding body
@@ -370,7 +428,8 @@ class Parser(RecursiveDescentParser):
             self.parse_body('elseif')
         if self.consume_if_kw_skip_newline('else'):
             self.parse_body('else', False)
-        self.pending.append(self.pop())
+        exp = self.pop()
+        self.pending.append(exp)  # note that self.pop() sets self.pending
     
     def parse_literal(self):
         token = self.consume()  # number or string
@@ -467,7 +526,19 @@ class Parser(RecursiveDescentParser):
 
 if __name__ == '__main__':
     
-    EXAMPLE = """
+    EXAMPLE1 = """
+    a = 3
+    if a > 2
+        a = 3
+        a = 4
+    elseif a < 2
+        b = 2
+    else
+        b = 3
+    a = 2
+    """
+    
+    EXAMPLE2 = """
     # asd
     a = 3
     a += 2
@@ -476,11 +547,11 @@ if __name__ == '__main__':
     else
         b = 3
     
-    # if a > 2 do b = 1 else b = 3
+    if a > 2 do b = 1 else b = 3
     
     """
     
-    tokens = tokenize(EXAMPLE)
+    tokens = tokenize(EXAMPLE2)
     
     p = Parser()
     ast = p.parse(tokens)
