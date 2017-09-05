@@ -93,7 +93,7 @@ def _resolve_expressions(expression_chain):
             if isinstance(chain[i], Token) and chain[i].text in ops:
                 token = chain[i]
                 funcname = opcallmap[chain[i].text]
-                optoken = Token('operator', token.linenr, token.column, funcname)
+                optoken = Token('operator', funcname, token.filename, token.linenr, token.column)
                 if i == 0:
                     # unary
                     assert isinstance(chain[i+1], Expr)
@@ -145,7 +145,7 @@ class RecursiveDescentParser:
         """
         self.reset()
         self.tokens = tokens
-        self.token = Token('unknown', 1, 0, '')  # stub token
+        self.token = Token('unknown', '', '', 1, 1)  # stub token
         self.next_token()  # set self.token
     
     def parse(self, tokens):
@@ -214,7 +214,7 @@ class RecursiveDescentParser:
         while True:
             self.token_index += 1
             if self.token_index >= len(self.tokens):
-                self.token = Token('eof', self.token.linenr, self.token.column, '')
+                self.token = Token('eof', '', self.token.filename, self.token.linenr, self.token.column)
             else:
                 self.token = self.tokens[self.token_index]
             if self.token.type != TYPES.comment:
@@ -452,7 +452,7 @@ class ZoofParser(RecursiveDescentParser):
             if token.text != '=':
                 # Aug assignn - wrap in an extra call
                 funcname = opcallmap[token.text[0]]
-                optoken = Token('operator', token.linenr, token.column, funcname)
+                optoken = Token('operator', funcname, token.filename, token.linenr, token.column)
                 subexp = Expr('call', token, Expr('identifier', optoken), dest)
                 exp.args.append(subexp)
                 exp = subexp
@@ -541,7 +541,7 @@ if __name__ == '__main__':
     
     """
     
-    tokens = tokenize(EXAMPLE2)
+    tokens = tokenize(EXAMPLE2, __file__, 531)
     
     p = ZoofParser()
     ast = p.parse(tokens)

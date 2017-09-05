@@ -58,14 +58,15 @@ class Token:
     """Representation of a token in the text.
     """
     
-    __slots__ = ['type', 'linenr', 'column', 'text']
+    __slots__ = ['type', 'text', 'filename', 'linenr', 'column']
     
-    def __init__(self, type, linenr, column, text):
+    def __init__(self, type, text, filename, linenr, column):
         assert type in TYPES._all, str(type) + ' is not a known token'
         self.type = type
+        self.text = text
+        self.filename = filename
         self.linenr = linenr
         self.column = column
-        self.text = text
     
     def __repr__(self):
         text = repr(self.text)
@@ -180,25 +181,26 @@ def find_rest_of_string(text, i):
 #     return i + 1
 
 
-def tokenize(text):
+def tokenize(text, filename='', linenr_offset=1):
     """ Find tokens in the given text. This function never raises an exception
     (unless it contains a bug), e.g. it can process invalid characters.
     """
     
     i = 0
-    linenr = 1
+    linenr = linenr_offset
     linestart = 0
     text_len = len(text)
     tokens = []
     token = None
+    loc = filename, linenr, 1
     
     # Process initial indent
     i, indent = find_rest_of_indent(text, -1)
     if indent:
-        tokens.append(Token('linestart', linenr, 1, text[:i]))
+        tokens.append(Token('linestart', text[:i], *loc))
     
     while i < text_len:
-        
+        loc = filename, linenr, i - linestart
         c = text[i]
         
         if c in ' \t':
@@ -208,16 +210,13 @@ def tokenize(text):
             linestart = i  # count from 1 
             i2, indent = find_rest_of_indent(text, i)
             if indent:
-                tokens.append(Token('linestart', linenr, 1, text[linestart+1:i2]))
+                loc = filename, linenr, 1
+                tokens.append(Token('linestart', text[linestart+1:i2], *loc))
             i = i2
-        
-        elif c == ';':
-            tokens.append(Token('statementsep', linenr, i - linestart, ';'))
-            i += 1
         
         elif c == '#':
             i2 = find_rest_of_comment(text, i)
-            token = Token('comment', linenr, i - linestart, text[i:i2])
+            token = Token('comment', text[i:i2], *loc)
             tokens.append(token)
             i = i2
         
@@ -225,21 +224,21 @@ def tokenize(text):
             i2 = find_rest_of_identifier(text, i)
             name = text[i:i2]
             if name in keywords:
-                token = Token('keyword', linenr, i - linestart, name)
+                token = Token('keyword', name, *loc)
             else:
-                token = Token('identifier', linenr, i - linestart, name)
+                token = Token('identifier', name, *loc)
             tokens.append(token)
             i = i2
         
         elif c.isdigit():
             i2 = find_rest_of_number(text, i)
-            token = Token('number', linenr, i - linestart, text[i:i2])
+            token = Token('number', text[i:i2], *loc)
             tokens.append(token)
             i = i2
         
         elif c == '"':
             i2, lines_skipped = find_rest_of_string(text, i)
-            token = Token('string', linenr, i - linestart, text[i:i2])
+            token = Token('string', text[i:i2], *loc)
             tokens.append(token)
             if lines_skipped > 0:
                 linenr += lines_skipped
@@ -247,17 +246,17 @@ def tokenize(text):
             i = i2
         
         elif c in '([{}])':
-            token = Token('bracket', linenr, i - linestart, c)
+            token = Token('bracket', c, *loc)
             tokens.append(token)
             i += 1
         
         elif c in '.':
-            token = Token('attr', linenr, i - linestart, c)
+            token = Token('attr', c, *loc)
             tokens.append(token)
             i += 1
         
         elif c in ',':
-            token = Token('sep', linenr, i - linestart, c)
+            token = Token('sep', c, *loc)
             tokens.append(token)
             i += 1
         
@@ -265,15 +264,15 @@ def tokenize(text):
             if i + 1 < text_len and text[i:i+2] in operators:
                 c = text[i:i+2]
             name = 'assign' if c in assignment_operators else 'operator'
-            tokens.append(Token(name, linenr, i - linestart, c))
+            tokens.append(Token(name, c, *loc))
             i += len(c)
         
         else:
-            token = Token('unknown', linenr, i - linestart, text[i])
+            token = Token('unknown', text[i], *loc)
             tokens.append(token)
             i += 1
     
-    # tokens.append(Token('eof', linenr, i, ''))
+    # tokens.append(Token('eof', '', *loc)
     return tokens
 
       
@@ -323,5 +322,5 @@ if __name__ == '__main__':
         print(repr(token))
     
     print('zoof')
-    for token in tokenize(EXAMPLE):
+    for token in tokenize(EXAMPLE, __file__, 286):
         print(token)
