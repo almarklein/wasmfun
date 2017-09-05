@@ -114,116 +114,39 @@ def _resolve_expressions(expression_chain):
 
 
 class RecursiveDescentParser:
-    """ Base class for recursive descent parsers """
+    """ Base class for recursive descent parsers.
+    Expression precedence is resolved by collecting expressions and operators
+    in a "pending" list, and resolving the list into a single expression when
+    it is finalized.
+    """
     
     def __init__(self):
         self.reset()
     
     def reset(self):
-        self.exp = None  # The current expression
+        """ Reset the internals of the parser in preparation for parsing.
+        """
         self.token = None  # The current token under cursor
-        self.tokens = []
-        self.token_index = -1
-        self.stack = []
-        self.pending = []  # todo: check validity each time that we add to it
-        self._look_ahead = []  # todo: I am pretty sure that we can remove look-ahead
+        self.token_index = -1  # The index of the current token
+        self.tokens = []  # The list of tokens to go through
+        
+        self.exp = None  # The current expression
+        self.pending = []  # The pending expressions and operators, interleaved
+        self.stack = []  # The expression stack (exp, pending)
     
-    def init_lexer(self, tokens):
-        """ Initialize the parser with the given tokens (an iterator) """
+    def set_tokens(self, tokens):
+        """ Initialize the parser with the given list of tokens.
+        """
         self.reset()
         self.tokens = tokens
-        self.token = Token('eof', 1, 0, '')  # stub token
+        self.token = Token('unknown', 1, 0, '')  # stub token
         self.next_token()  # set self.token
     
-    def error(self, msg):
-        """ Raise an error at the current location """
-        raise ZoofSyntaxError(self.token, msg)
-
-    @property
-    def current_location(self):
-        return self.token.linenr, self.token.column
-
-    # Lexer helpers:
-    def consume(self, typ=None):
-        """ Assert that the next token is typ, and if so, return it.
-
-        If typ is a list or tuple, consume one of the given types.
-        If typ is not given, consume the next token.
+    def parse(self, tokens):
+        """ The main parse function.
         """
-        if typ is None:
-            typ = self.peak
-
-        expected_types = typ if isinstance(typ, (list, tuple, set)) else [typ]
-
-        if self.peak in expected_types:
-            return self.next_token()
-        else:
-            expected = ', '.join(expected_types)
-            self.error(
-                'Expected {0}, got "{1}"'.format(expected, self.peak))
-
-    def has_consumed(self, typ):
-        """ Checks if the look-ahead token is of type typ, and if so
-            eats the token and returns true """
-        if self.peak == typ:
-            self.consume()
-            return True
-        return False
-
-    def next_token(self):
-        """ Advance to the next token """
-        tok = self.token
-        if self._look_ahead:
-            self.token = self._look_ahead.pop(0)
-        else:
-            while True:
-                self.token_index += 1
-                if self.token_index >= len(self.tokens):
-                    self.token = Token('eof', self.token.linenr, self.token.column, '')
-                else:
-                    self.token = self.tokens[self.token_index]
-                if self.token.type != TYPES.comment:
-                    break
-        return tok
-
-    def not_impl(self):  # pragma: no cover
-        """ Call this function when parsing reaches unimplemented parts """
-        raise CompilerError('Not implemented', loc=self.token.loc)
-
-    @property
-    def peak(self):
-        """ Look at the next token to parse without popping it """
-        if self.token:
-            return self.token.type
-
-    @property
-    def peak_kw(self):
-        """ Look at the next keyword token to parse without popping it """
-        if self.token:
-            return self.token.text if self.token.type == 'keyword' else ''
-    
-    def look_ahead(self, amount):
-        """ Take a look at x tokens ahead """
-        if amount > 0:
-            while len(self._look_ahead) < amount:
-                next_token = next(self.tokens, None)
-                if next_token is None:
-                    return
-                self._look_ahead.append(next_token)
-            return self._look_ahead[amount - 1]
-        else:
-            return self.token
-
-
-class Parser(RecursiveDescentParser):
-    """
-    """
-    
-    def reset(self):
-        super().reset()
-        # This parser uses whitespace and indentation
-        self.indent = 0
-        self.one_liner = False
+        self.set_tokens(tokens)
+        raise NotImplementedError('Subclasses should implement this')
     
     def push(self, exp):
         """ Push expression on the stack.
@@ -255,15 +178,94 @@ class Parser(RecursiveDescentParser):
             self.exp.args.append(_resolve_expressions(self.pending))
             self.pending.clear()
             # self.exp_count += 1
+    
+    def error(self, msg):
+        """ Raise an error at the current location.
+        """
+        raise ZoofSyntaxError(self.token, msg)
 
+    def consume(self, typ=None):
+        """ Assert that the next token is typ, and if so, return it.
+        If typ is a list or tuple, consume one of the given types.
+        If typ is not given, consume the next token.
+        """
+        if typ is None:
+            typ = self.peak
+
+        expected_types = typ if isinstance(typ, (list, tuple, set)) else [typ]
+
+        if self.peak in expected_types:
+            return self.next_token()
+        else:
+            expected = ', '.join(expected_types)
+            self.error(
+                'Expected {0}, got "{1}"'.format(expected, self.peak))
+
+    def next_token(self):
+        """ Advance to the next token, returning the current.
+        """
+        tok = self.token
+        while True:
+            self.token_index += 1
+            if self.token_index >= len(self.tokens):
+                self.token = Token('eof', self.token.linenr, self.token.column, '')
+            else:
+                self.token = self.tokens[self.token_index]
+            if self.token.type != TYPES.comment:
+                break
+        return tok
+
+    @property
+    def peak(self):
+        """ Look at the next token to parse without popping it.
+        """
+        if self.token:
+            return self.token.type
+
+    @property
+    def peak_kw(self):
+        """ Look at the next keyword token to parse without popping it.
+        """
+        if self.token:
+            return self.token.text if self.token.type == 'keyword' else ''
+
+
+class ZoofParser(RecursiveDescentParser):
+    """ The Zoof parser. A hand-written recursive descent parser wich
+    is aware of indentation.
+    """
+    
+    def reset(self):
+        super().reset()
+        # This parser uses whitespace and indentation
+        self.indent = 0
+        self.one_liner = False
+    
+    def consume_if_kw_skip_newline(self, kw):
+        """ Consume a certain keyword, skipping newlines.
+        """
+        i = self.token_index
+        if self.peak == TYPES.linestart:
+            i += 1
+        if i < len(self.tokens):
+            if self.tokens[i].type == TYPES.keyword and self.tokens[i].text == kw:
+                self.token_index = i + 1
+                self.token = tokens[self.token_index]
+                return True
+        return False
+    
+    ## High level parse functions
+    
     def parse(self, tokens):
         """ Parse a series of tokens.
         """
-            
-        self.init_lexer(tokens)
-        if self.peak == TYPES.eof:
-            return Expr('block')  # because parse_expressions() expects at least one token
         
+        # Init, check if there are any tokens to parse, because parse_expressions() expects at least one token
+        self.set_tokens(tokens)
+        if self.peak == TYPES.eof:
+            return Expr('block')
+        
+        # Parse
         root = self.parse_expressions()
         
         # Wrap up
@@ -271,8 +273,6 @@ class Parser(RecursiveDescentParser):
             raise ZoofSyntaxError(token, 'Code is incomplete')
         assert not self.pending
         return root
-    
-    ## The parse functions
     
     def parse_expression(self):
         """ Process tokens untill we have a full expression.
@@ -292,19 +292,19 @@ class Parser(RecursiveDescentParser):
                 # Keyword - start or shape a construct
                 kw = self.peak_kw
                 if kw == 'if':
-                    self.parse_if()
+                    self.handle_if()
                 elif kw == 'loop':
                     assert False
             elif token_type == TYPES.assign: # todo: maybe = should also be an operator, can take part in precedence climbing
-                self.parse_assign()
+                self.handle_assign()
             elif token_type == TYPES.operator:
-                self.parse_operator()
+                self.handle_operator()
             elif token_type in ('number', 'string'):
-                self.parse_literal()
+                self.handle_literal()
             elif token_type == TYPES.identifier:  # todo: rename identifier to symbol
-                self.parse_identifier()
+                self.handle_identifier()
             elif token_type == TYPES.bracket:
-                self.parse_bracket()
+                self.handle_bracket()
             elif token_type == TYPES.attr:
                 # Attribute access. We don't call it an operator
                 raise NotImplementedError()
@@ -404,18 +404,9 @@ class Parser(RecursiveDescentParser):
             self.error('Expecting newline or do-keyword before body in %s expression.' % context)
         self.exp.args.append(block)  # similar to what parse_expression does
     
-    def consume_if_kw_skip_newline(self, kw):
-        i = self.token_index
-        if self.peak == TYPES.linestart:
-            i += 1
-        if i < len(self.tokens):
-            if self.tokens[i].type == TYPES.keyword and self.tokens[i].text == kw:
-                self.token_index = i + 1
-                self.token = tokens[self.token_index]
-                return True
-        return False
+    ## Low level parse functions
     
-    def parse_if(self):
+    def handle_if(self):
         # todo: put elif flat in args or stack in a tree of else-if nodes like Py does? What does Julia do?
         self.push(Expr('if'))
         assert self.consume(TYPES.keyword).text == 'if'
@@ -431,19 +422,19 @@ class Parser(RecursiveDescentParser):
         exp = self.pop()
         self.pending.append(exp)  # note that self.pop() sets self.pending
     
-    def parse_literal(self):
+    def handle_literal(self):
         token = self.consume()  # number or string
         if self.pending and isinstance(self.pending[-1], Expr):
             raise ZoofSyntaxError(token, 'Unexpected %s literal' % token.type)
         self.pending.append(Expr('literal', token.text))
     
-    def parse_identifier(self):  # aka names/labels/symbols/identifiers
+    def handle_identifier(self):  # aka names/labels/symbols/identifiers
         token = self.consume(TYPES.identifier) 
         if self.pending and isinstance(self.pending[-1], Expr):
             raise ZoofSyntaxError(token, 'Unexpected identifier')
         self.pending.append(Expr('identifier', token.text))
     
-    def parse_assign(self):
+    def handle_assign(self):
         token = self.consume(TYPES.assign) 
         if self.exp.kind != 'block':
             raise ZoofSyntaxError(token, 'Unexpected assignment')
@@ -466,7 +457,7 @@ class Parser(RecursiveDescentParser):
         else:
             raise ZoofSyntaxError(token, 'Assignment needs identifier to its left.')
 
-    def parse_operator(self):
+    def handle_operator(self):
         # Operators can be unary, operating on two operands, or chained
         token = self.consume(TYPES.operator)
         if not self.pending:
@@ -480,7 +471,7 @@ class Parser(RecursiveDescentParser):
                 raise ZoofSyntaxError(token, 'Unexpected operator')
             self.pending.append(token.text)
     
-    def parse_bracket(self):
+    def handle_bracket(self):
         token = self.consume(TYPES.bracket)
         if token.text == '(':
             # Start of a call, expression-group or tuple
@@ -553,7 +544,7 @@ if __name__ == '__main__':
     
     tokens = tokenize(EXAMPLE2)
     
-    p = Parser()
+    p = ZoofParser()
     ast = p.parse(tokens)
     # ast = parse(tokens)
     
