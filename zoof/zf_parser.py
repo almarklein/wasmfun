@@ -27,18 +27,18 @@ class ZoofSyntaxError(SyntaxError):
 class Expr:
     """ Class to hold expressions. This system is inspired by that of Julia.
     Each Expression object represents a node in the AST tree. Each Expression
-    has a kind, indicating the kind of expression, a list of args, and a type
-    that indicates the "return type". The kind of args depends on the kind of
-    expression:
+    has a kind, indicating the kind of expression, a token, representing its
+    location in the source code, and a list of args, which are all expressions.
+    For expressions that have no args their token.text represents their "value".
     
-    Expressions that only hold expressions:
+    Expressions that hold sub expressions:
     
     * block: *expressions
     * assign: target-exp (identifier or tuple), expression
     * if: test_exp, body_block, [elseif_test_block, elseif_body], else_block
     * call: expression (often an identifier), arg1-expr, arg2-expr, ...
     
-    Expressions that hold strings / tokens:
+    Expressions that are leaf nodes:
     
     * identifier: the name
     * literal: the text that makes up the literal
@@ -50,13 +50,17 @@ class Expr:
              'bracethingy',  # group or tuple, not known at creation time
              ]
     
-    def __init__(self, kind, *args):
+    def __init__(self, kind, token, *args):
         assert kind in self.KINDS
         self.kind = kind
+        self.token = token
         self.args = list(args)
     
     def __repr__(self):
-        return '<Expr %s with %i args>' % (self.kind, len(self.args))
+        if len(self.args) == 0:
+            return '<Expr %s: %r>' % (self.kind, self.token.text)
+        else:
+            return '<Expr %s with %i args>' % (self.kind, len(self.args))
     
     def show(self, indent=0):
         print('    ' * indent + repr(self))
@@ -86,12 +90,14 @@ def _resolve_expressions(expression_chain):
     for ops in [('*', '/'), ('+', '-'), ('==', '>', '<', '>=', '<=')]:
         i = 0
         while i < len(chain):
-            if chain[i] in ops:
-                funcname = opcallmap[chain[i]]
+            if isinstance(chain[i], Token) and chain[i].text in ops:
+                token = chain[i]
+                funcname = opcallmap[chain[i].text]
+                optoken = Token('operator', token.linenr, token.column, funcname)
                 if i == 0:
                     # unary
                     assert isinstance(chain[i+1], Expr)
-                    e = Expr('call', Expr('identifier', funcname), chain[i+1])
+                    e = Expr('call', token, Expr('identifier', optoken), chain[i+1])
                     chain = [e] + chain[2:]
                     i += 1
                 elif (funcname in multiops and chain[i-1].kind == 'call' and
@@ -104,7 +110,7 @@ def _resolve_expressions(expression_chain):
                     # binary
                     assert isinstance(chain[i-1], Expr)
                     assert isinstance(chain[i+1], Expr)
-                    e = Expr('call', Expr('identifier', funcname), chain[i-1], chain[i+1])
+                    e = Expr('call', token, Expr('identifier', optoken), chain[i-1], chain[i+1])
                     chain = chain[:i-1] + [e] + chain[i+2:]
                     i += 0
             else:
@@ -263,7 +269,7 @@ class ZoofParser(RecursiveDescentParser):
         # Init, check if there are any tokens to parse, because parse_expressions() expects at least one token
         self.set_tokens(tokens)
         if self.peak == TYPES.eof:
-            return Expr('block')
+            return Expr('block', self.token)
         
         # Parse
         root = self.parse_expressions()
@@ -335,7 +341,7 @@ class ZoofParser(RecursiveDescentParser):
         Only to be used from parse_body().
         """
         stacksize = len(self.stack)
-        self.push(Expr('block'))
+        self.push(Expr('block', self.token))
         self.parse_expression()
         exp = self.pop()
         assert len(self.stack) == stacksize
@@ -353,7 +359,7 @@ class ZoofParser(RecursiveDescentParser):
         assert indent > prev_indent
         
         stacksize = len(self.stack)
-        self.push(Expr('block'))
+        self.push(Expr('block', self.token))
         # assert self.exp.kind == 'block'
         
         while True:
@@ -363,7 +369,6 @@ class ZoofParser(RecursiveDescentParser):
                 break
             else:
                 self.parse_expression()
-            # todo: lines with comments
             if self.peak == TYPES.linestart:
                 token = self.token  #self.consume(TYPES.linestart)  # todo: is consumed at start end end of a block!
                 self.one_liner = False
@@ -408,7 +413,7 @@ class ZoofParser(RecursiveDescentParser):
     
     def handle_if(self):
         # todo: put elif flat in args or stack in a tree of else-if nodes like Py does? What does Julia do?
-        self.push(Expr('if'))
+        self.push(Expr('if', self.token))
         assert self.consume(TYPES.keyword).text == 'if'
         # Get test-expression and corresponding body
         self.parse_expression()
@@ -426,13 +431,13 @@ class ZoofParser(RecursiveDescentParser):
         token = self.consume()  # number or string
         if self.pending and isinstance(self.pending[-1], Expr):
             raise ZoofSyntaxError(token, 'Unexpected %s literal' % token.type)
-        self.pending.append(Expr('literal', token.text))
+        self.pending.append(Expr('literal', token))
     
     def handle_identifier(self):  # aka names/labels/symbols/identifiers
         token = self.consume(TYPES.identifier) 
         if self.pending and isinstance(self.pending[-1], Expr):
             raise ZoofSyntaxError(token, 'Unexpected identifier')
-        self.pending.append(Expr('identifier', token.text))
+        self.pending.append(Expr('identifier', token))
     
     def handle_assign(self):
         token = self.consume(TYPES.assign) 
@@ -442,12 +447,13 @@ class ZoofParser(RecursiveDescentParser):
             raise ZoofSyntaxError(token, 'Assignment needs something to its left.')
         elif self.pending[0].kind == 'identifier':
             dest = self.pending[0]
-            exp = Expr('assign', dest)
+            exp = Expr('assign', token, dest)
             self.pending[0] = exp
             if token.text != '=':
                 # Aug assignn - wrap in an extra call
                 funcname = opcallmap[token.text[0]]
-                subexp = Expr('call', Expr('identifier', funcname), dest)
+                optoken = Token('operator', token.linenr, token.column, funcname)
+                subexp = Expr('call', token, Expr('identifier', optoken), dest)
                 exp.args.append(subexp)
                 exp = subexp
             self.push(exp)
@@ -464,12 +470,12 @@ class ZoofParser(RecursiveDescentParser):
             # unary
             if token.text not in ('+', '-'):
                 raise ZoofSyntaxError(token, 'Only + and - can be unary operators')
-            self.pending.append(token.text)
+            self.pending.append(token)
         else:
             # binary
             if not isinstance(self.pending[-1], Expr):
                 raise ZoofSyntaxError(token, 'Unexpected operator')
-            self.pending.append(token.text)
+            self.pending.append(token)
     
     def handle_bracket(self):
         token = self.consume(TYPES.bracket)
@@ -477,7 +483,7 @@ class ZoofParser(RecursiveDescentParser):
             # Start of a call, expression-group or tuple
             if self.pending and isinstance(self.pending[-1], Expr):
                 # call
-                exp = Expr('call', self.pending[-1])
+                exp = Expr('call', token, self.pending[-1])
                 self.pending[-1] = exp
                 self.push(exp)
                 self.parse_expression()
@@ -487,7 +493,7 @@ class ZoofParser(RecursiveDescentParser):
                 self.pop()
             else:
                 # expression group or tuple
-                exp = Expr('bracethingy')  # todo: dissolve this into the exp that represents the internal operator
+                exp = Expr('bracethingy', token)  # todo: dissolve this into the exp that represents the internal operator
                 self.push(exp)
                 self.parse_expression()
                 if self.consume(TYPES.bracket).text != ')':
@@ -499,7 +505,7 @@ class ZoofParser(RecursiveDescentParser):
             # Start of subscript - take place of last exp in chain
             if not (self.pending and isinstance(self.pending[-1], Expr)):
                 raise ZoofSyntaxError(token, 'Unexpected subscript start')
-            exp = Expr('index', self.pending[-1])
+            exp = Expr('index', token, self.pending[-1])
             self.pending[-1] = exp
             push(exp)
             self.parse_expression()
@@ -518,15 +524,8 @@ class ZoofParser(RecursiveDescentParser):
 if __name__ == '__main__':
     
     EXAMPLE1 = """
-    a = 3
-    if a > 2
-        a = 3
-        a = 4
-    elseif a < 2
-        b = 2
-    else
-        b = 3
-    a = 2
+    a += 3 * 5
+    
     """
     
     EXAMPLE2 = """
@@ -536,7 +535,7 @@ if __name__ == '__main__':
     if a > 2
         b = 1
     else
-        b = 3
+        b += 3
     
     if a > 2 do b = 1 else b = 3
     
