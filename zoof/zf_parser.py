@@ -14,7 +14,7 @@ encountering an else check whether it makes sense.
 
 import os
 
-from zf_tokenizer import tokenize, TYPES
+from zf_tokenizer import Token, tokenize, TYPES
 
 
 class ZoofSyntaxError(SyntaxError):
@@ -462,8 +462,9 @@ class RecursiveDescentParser:
 
     def init_lexer(self, tokens):
         """ Initialize the parser with the given tokens (an iterator) """
+        self.token_index = 0
         self.tokens = tokens
-        self.token = next(self.tokens, None)
+        self.token = self.tokens[self.token_index]
         self._look_ahead = []
 
     def error(self, msg):
@@ -507,7 +508,11 @@ class RecursiveDescentParser:
         if self._look_ahead:
             self.token = self._look_ahead.pop(0)
         else:
-            self.token = next(self.tokens, None)
+            self.token_index += 1
+            if self.token_index >= len(self.tokens):
+                self.token = Token('eof', self.token.linenr, self.token.column, '')
+            else:
+                self.token = self.tokens[self.token_index]
         return tok
 
     def not_impl(self):  # pragma: no cover
@@ -544,6 +549,8 @@ class RecursiveDescentParser:
 
 
 class Parser(RecursiveDescentParser):
+    """
+    """
     
     def __init__(self):
         self.reset()
@@ -562,6 +569,7 @@ class Parser(RecursiveDescentParser):
         self.exp = exp
         self.pending = []
         self.stack.append((self.exp, self.pending))
+        return exp
     
     def pop(self):
         """ Pop expression from stack.
@@ -594,8 +602,9 @@ class Parser(RecursiveDescentParser):
         # Wrap up
         if len(self.stack) > 0:
             raise ZoofSyntaxError(token, 'Code is incomplete')
-        assert not root.args
-        self.finish_pending()
+        assert not self.pending
+        #assert not root.args
+        #self.finish_pending()
         return root
     
     ## The parse functions
@@ -617,7 +626,7 @@ class Parser(RecursiveDescentParser):
                 # Keyword - start or shape a construct
                 kw = self.peak_kw
                 if kw == 'if':
-                    return self.parse_if()
+                    self.parse_if()
                 elif kw == 'loop':
                     assert False
             elif token_type == TYPES.assign: # todo: maybe = should also be an operator, can take part in precedence climbing
@@ -639,19 +648,21 @@ class Parser(RecursiveDescentParser):
             elif token_type == TYPES.comment:
                 pass  # no action needed
             elif token_type == TYPES.unknown:
-                raise ZoofSyntaxError(token, 'Unknown token')
+                raise ZoofSyntaxError(self.token, 'Unknown token')
+            elif token_type == 'eof':
+                break
             else:
-                raise ZoofSyntaxError(token, 'Unexpected %s token' % token_type)
+                raise ZoofSyntaxError(self.token, 'Unexpected %s token' % token_type)
             
             # We must have encountered an expression now
             if len(self.pending) == 0:
                 if self.peak == TYPES.keyword:
                     self.error('Expected an expression, not a keyword')
                 else:
-                    self.error('Expected an expression')
+                    self.error('Expected an expression, not %s' % self.peak)
             
             # Can we finish the exression?
-            if self.peak in (TYPES.linestart, TYPES.keyword):
+            if self.peak in (TYPES.linestart, TYPES.eof, TYPES.keyword):
                 self.finish_pending()
                 break
     
@@ -661,46 +672,54 @@ class Parser(RecursiveDescentParser):
         stacksize = len(self.stack)
         self.push(Expr('block'))
         self.parse_expression()
+        exp = self.pop()
         assert len(self.stack) == stacksize
-        return self.pop()
+        return exp
     
     def parse_expressions(self):
         """ Parse a series of expressions, which are each on a line.
+        Does not consume the final (dedented) newline token.
         """
         assert self.peak == TYPES.linestart
         prev_indent = self.indent
-        self.indent = indent = len(self.consume(TYPES.linestart).text)
+        self.indent = indent = len(self.token.text)
         
         stacksize = len(self.stack)
         self.push(Expr('block'))
         # assert self.exp.kind == 'block'
         
         while True:
+            self.consume(TYPES.linestart)
             if self.peak == TYPES.comment:
                 self.consume(TYPES.comment)
+            elif self.peak == TYPES.eof:
+                break
             else:
                 self.parse_expression()
             # todo: lines with comments
             if self.peak == TYPES.linestart:
-                token = self.consume(TYPES.linestart)
+                token = self.token  #self.consume(TYPES.linestart)  # todo: is consumed at start end end of a block!
                 self.one_liner = False
-                indent = len(token.text) > self.indent
-                if indent > 0:
+                ind = len(token.text) - self.indent
+                if ind > 0:
                     self.error('Unexpected indent.')
-                elif indent < 0:
+                elif ind < 0:
                     if len(token.text) != prev_indent:
                         self.error('Unexpected dedent.')
                     else:
                         break
+            elif self.peak == 'eof':
+                break
             else:
                 self.error('huh')
         
         assert indent == self.indent
         self.indent = prev_indent
+        exp = self.pop()
         assert len(self.stack) == stacksize
-        return self.pop()
+        return exp
     
-    def parse_body(self, context):
+    def parse_body(self, context, need_nl_or_do=True):
         """ Parse the body of a construct, which can be a do with one
         expression, or a newline followed by multiple expressions.
         """
@@ -708,24 +727,38 @@ class Parser(RecursiveDescentParser):
             self.parse_expressions()
         elif self.peak_kw == 'do':
             self.one_liner = True
-            self.parse_expression()
+            self.consume(TYPES.keyword)
+            self.parse_expression_and_wrap()
+        elif not need_nl_or_do:
+            self.one_liner = True
+            self.parse_expression_and_wrap()
         else:
             self.error('Expecting newline or do-keyword before body in %s expression.' % context)
-        
+    
+    def consume_if_kw_skip_newline(self, kw):
+        i = self.token_index
+        if self.peak == TYPES.linestart:
+            i += 1
+        if i < len(self.tokens):
+            if self.tokens[i].type == TYPES.keyword and self.tokens[i].text == kw:
+                self.token_index = i + 1
+                self.token = tokens[self.token_index]
+                return True
+        return False
+    
     def parse_if(self):
         self.push(Expr('if'))
-        assert self.consume(TYPES.keyword) == 'if'
+        assert self.consume(TYPES.keyword).text == 'if'
         # Get test-expression and corresponding body
         self.parse_expression()
-        self.parse_body()
+        self.parse_body('if')
         # Get any elseif clauses
-        while self.peak_kw == 'elseif':
-            self.parse_expressions()
-            self.parse_body()
-        if self.peak_kw == 'else':
-            self.consume(TYPES.keyword)
-            self.parse_body()
-        self.pop()
+        while self.consume_if_kw_skip_newline('elseif'):
+            self.parse_expression()
+            self.parse_body('elseif')
+        if self.consume_if_kw_skip_newline('else'):
+            self.parse_body('else', False)
+        self.pending.append(self.pop())
     
     def parse_literal(self):
         token = self.consume()  # number or string
@@ -764,7 +797,7 @@ class Parser(RecursiveDescentParser):
 
     def parse_operator(self):
         # Operators can be unary, operating on two operands, or chained
-        token = self.consume(TYPES.operators)
+        token = self.consume(TYPES.operator)
         if not self.pending:
             # unary
             if token.text not in ('+', '-'):
@@ -830,24 +863,8 @@ if __name__ == '__main__':
         b = 1
     else
         b = 3
-    end
-    if a > 2 do b = 1 else b = 3
     
-    x.sort(func(x) { -x})
-    
-    loop
-        ...
-    
-    loop i in 1:10
-        ...
-    
-    loop until i < 19
-        
-    loop
-        ...
-    while i < 109
-    
-    
+    # if a > 2 do b = 1 else b = 3
     
     """
     

@@ -268,7 +268,7 @@ def tokenize(text):
             tokens.append(token)
             i += 1
     
-    tokens.append(Token('eof', linenr, i, ''))
+    # tokens.append(Token('eof', linenr, i, ''))
     return tokens
 
       
