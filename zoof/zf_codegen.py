@@ -1,6 +1,6 @@
 """
-Compiler for the experimental WIP Zoof lang. It takes the AST produced
-by the parser and converts them to WASM.
+Code generator for the experimental WIP Zoof lang. It takes the AST produced
+by the parser and converts it to WASM.
 """
 
 import wasmfun as wf
@@ -33,7 +33,7 @@ class Context:
 
 
 def compile(ast):
-    """ Parse expressions (that make up an AST) to WASM instuctions.
+    """ Compile expressions (that make up an AST) to WASM instuctions.
     """
     assert ast.kind == 'block'
     ctx = compile_func(ast)

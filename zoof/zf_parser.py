@@ -17,22 +17,21 @@ import os
 from zf_tokenizer import Token, tokenize, TYPES
 
 
+def parse(tokens):
+    """ Parse a series of tokens and return the corresponding AST tree.
+    """
+    p = ZoofParser()
+    tree = p.parse(tokens)
+    return tree
+
+
 class ZoofSyntaxError(SyntaxError):
     
     def __init__(self, token, msg):
         at = ' at line %i:%i' % (token.linenr, token.column)
-        extra = self.get_example(token) or ''
-        super().__init__(msg + at + extra)
+        super().__init__(msg + at + token.get_location_info())
     
-    def get_example(self, token):
-        # todo: cache files
-        if token.filename and os.path.isfile(token.filename):
-            lines = open(token.filename, 'rb').read().decode().splitlines()
-            if token.linenr > 0 and token.linenr <= len(lines):
-                extra = '\n    ' + lines[token.linenr - 1] + '\n   ' + ' ' * token.column + '^'
-                if token.linenr > 1:
-                    extra = '\n    ' + lines[token.linenr - 2] + extra
-                return extra
+    
 
 
 class Expr:
@@ -112,7 +111,7 @@ def _resolve_expressions(expression_chain):
                     chain = [e] + chain[2:]
                     i += 1
                 elif (funcname in multiops and chain[i-1].kind == 'call' and
-                      chain[i-1].args[0].kind == 'identifier' and chain[i-1].args[0].args[0] == funcname):
+                      chain[i-1].args[0].kind == 'identifier' and chain[i-1].args[0].token.text == funcname):
                     # binary +
                     chain[i-1].args.append(chain[i+1])
                     chain = chain[:i] + chain[i+2:]
@@ -266,7 +265,7 @@ class ZoofParser(RecursiveDescentParser):
         if i < len(self.tokens) - 1:
             if self.tokens[i].type == TYPES.keyword and self.tokens[i].text == kw:
                 self.token_index = i + 1
-                self.token = tokens[self.token_index]
+                self.token = self.tokens[self.token_index]
                 return True
         return False
     
@@ -282,7 +281,7 @@ class ZoofParser(RecursiveDescentParser):
             return Expr('block', self.token)
         
         # Parse
-        root = self.parse_expressions()
+        root = self.parse_expressions(True)
         
         # Wrap up
         if len(self.stack) > 0:
@@ -320,7 +319,12 @@ class ZoofParser(RecursiveDescentParser):
             elif token_type == TYPES.identifier:  # todo: rename identifier to symbol
                 self.handle_identifier()
             elif token_type == TYPES.bracket:
-                self.handle_bracket()
+                if self.token.text in ')]}':  # todo: is this the way to go?
+                    assert self.pending
+                    self.finish_pending()
+                    break
+                else:
+                    self.handle_bracket()
             elif token_type == TYPES.attr:
                 # Attribute access. We don't call it an operator
                 raise NotImplementedError()
@@ -357,7 +361,7 @@ class ZoofParser(RecursiveDescentParser):
         assert len(self.stack) == stacksize
         return exp
     
-    def parse_expressions(self):
+    def parse_expressions(self, root=False):
         """ Parse a series of expressions, which are each on a line.
         Does not consume the final (dedented) newline token.
         There must be at least one expression.
@@ -366,7 +370,7 @@ class ZoofParser(RecursiveDescentParser):
         assert self.peak == TYPES.linestart
         prev_indent = self.indent
         self.indent = indent = len(self.token.text)
-        if indent <= prev_indent:
+        if indent <= prev_indent and not root:
             self.error('Expected an indentation.')
         
         stacksize = len(self.stack)
@@ -529,7 +533,7 @@ class ZoofParser(RecursiveDescentParser):
             # Start or end of dict/set literal
             raise NotImplementedError()
         else:
-            raise ZoofSyntaxError('Unknown bracket type %s' % token.text)
+            raise ZoofSyntaxError(token, 'Unexpected bracket %s' % token.text)
 
 
 if __name__ == '__main__':
@@ -552,8 +556,7 @@ if __name__ == '__main__':
     
     tokens = tokenize(EXAMPLE2, __file__, 542)
     
-    p = ZoofParser()
-    ast = p.parse(tokens)
+    ast = parse(tokens)
     # ast = parse(tokens)
     
     #print(ast)

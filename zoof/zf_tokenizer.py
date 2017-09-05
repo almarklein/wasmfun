@@ -14,6 +14,8 @@ generate it.
 
 """
 
+import os
+
 keywords = ('import', 'export',
             'type', 'func', 'return',
             'loop', 'while', 'if', 'elseif', 'else', 'with', 'do', 'continue', 'break',
@@ -73,7 +75,20 @@ class Token:
         if len(text) > 50:
             text = 'too long'
         return '<Token %s %i:%i %s>' % (self.type, self.linenr, self.column, text)
-
+    
+    def get_location_info(self):
+        # todo: cache files
+        if self.filename and os.path.isfile(self.filename):
+            lines = open(self.filename, 'rb').read().decode().splitlines()
+            if self.linenr > 0 and self.linenr <= len(lines):
+                extra = '\n    ' + lines[self.linenr - 1] + '\n   ' + ' ' * self.column + '^'
+                if self.linenr > 1:
+                    extra = '\n    ' + lines[self.linenr - 2] + extra
+                return extra
+        return ''
+    
+    def show(self):
+        print('%r%s' % (self, self.get_location_info()))
 
 def find_rest_of_indent(text, i):
     i += 1
