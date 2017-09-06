@@ -18,7 +18,6 @@ been fully decided on. The only value will be float at first.
 
 ## Next steps / dreaming out loud
 
-* If-expressions, for-loops, etc.
 * Functions
 * Modules
 * More types like Text, Array and Int.
