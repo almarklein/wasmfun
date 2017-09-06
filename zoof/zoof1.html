@@ -95,10 +95,8 @@ t0 = perf_counter()
 loop while n < max
     i = i + 1
     
-    if i <= 1
-        continue  # nope
-    elseif i == 2
-        n = n + 1
+    if i <= 1 do continue  # nope
+    elseif i == 2 do n = n + 1
     else
         gotit = 1
         # loop j in 2..i//2 + 1
@@ -108,8 +106,7 @@ loop while n < max
             if i % j == 0
                 gotit = 0
                 break
-        if gotit == 1
-            n = n + 1
+        if gotit == 1 do n = n + 1
 
 print(perf_counter() - t0)
 print(i)
