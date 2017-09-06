@@ -26,12 +26,25 @@ class Context:
         self.instructions = []
         self.names = {}
         self._name_counter = 0
+        self._block_stack = []
     
     def name_idx(self, name):
         if name not in self.names:
             self.names[name] = self._name_counter
             self._name_counter += 1
         return self.names[name]
+    
+    def push_block(self, kind):
+        assert kind in ('if', 'loop')
+        self._block_stack.append(kind)
+    
+    def pop_block(self, kind):
+        assert self._block_stack.pop(-1) == kind
+    
+    def get_block_level(self):
+        for i, kind in enumerate(reversed(self._block_stack)):
+            if kind in ('loop'):
+                return i
 
 
 def compile(code):
@@ -58,6 +71,7 @@ def generate_code(ast):
     
     module = wf.Module(
         wf.ImportedFuncion('print_ln', ['f64'], [], 'js', 'print_ln'),
+        wf.ImportedFuncion('perf_counter', [], ['f64'], 'js', 'perf_counter'),
         wf.Function('$main', [], [], locals, ctx.instructions),
         )
     
@@ -107,6 +121,7 @@ def _compile_expr(expr, ctx, push_stack=True):
         # Run test
         _compile_expr(expr.args[0], ctx, True)
         # Branch + body
+        ctx.push_block('if')
         if push_stack:
             ctx.instructions.append(('if', 'f64'))
         else:
@@ -129,13 +144,58 @@ def _compile_expr(expr, ctx, push_stack=True):
                 _compile_expr(e, ctx, False)
             if len(expr.args) == 3:
                 ctx.instructions.append(('else', ))
-                for e in expr.args[2].args:
-                    _compile_expr(e, ctx, False)
+                if expr.args[2].kind == 'block':
+                    for e in expr.args[2].args:
+                        _compile_expr(e, ctx, False)
+                else:
+                    _compile_expr(expr.args[2], ctx, False)
         ctx.instructions.append(('end', ))
+        ctx.pop_block('if')
+    
+    elif expr.kind == 'loop':
+        
+        # Init blocks - (outer block for break)
+        ctx.push_block('loop')
+        for i in [('block', 'emptyblock'), ('loop', 'emptyblock')]:
+            ctx.instructions.append(i)
+        
+        if len(expr.args) == 1:
+            # loop-inf
+            for e in expr.args[1].args:
+                _compile_expr(e, ctx, False)
+        elif len(expr.args) == 2:
+            # loop-while
+            _compile_expr(expr.args[0], ctx, True)  # test
+            ctx.instructions.append('i32.eqz')  # negate
+            ctx.instructions.append(('br_if', 1))
+            for e in expr.args[1].args:
+                _compile_expr(e, ctx, False)
+            ctx.instructions.append(('br', 0))  # loop
+        elif len(expr.args) == 3:
+            # loop-in
+            raise NotImplementedError()
+        else:
+            assert False, 'Unexpected number of args in loop expression.'
+        
+        # Close loop
+        for i in [('end'), ('end')]:
+            ctx.instructions.append(i)
+        ctx.pop_block('loop')
+    
+    elif expr.kind == 'continue':
+        # branch to loop-block, i.e. beginning of the loop
+        ctx.instructions.append(('br', ctx.get_block_level()))
+    
+    elif expr.kind == 'break':
+        # branch to block that surrounds the loop, i.e. after the loop
+        ctx.instructions.append(('br', ctx.get_block_level() + 1))
+    
     else:
-        raise RuntimeError('Unknown expression kind %r' % e.kind)
+        raise RuntimeError('Unknown expression kind %r' % expr.kind)
+
 
 PRINT_FUNC_ID = 0
+PERF_COUNTER_FUNC_ID = 1
 
 def _compile_call(expr, ctx, push_stack=True):
     """ This is sort of our stdlib, later this could look up the call
@@ -153,9 +213,14 @@ def _compile_call(expr, ctx, push_stack=True):
             ii.append('drop')
     
     elif name == 'sub':
-        _compile_expr(expr.args[1], ctx, True)
-        _compile_expr(expr.args[2], ctx, True)
-        ii = ['f64.sub']
+        ii = []
+        if len(expr.args) == 3:
+            _compile_expr(expr.args[1], ctx, True)
+            _compile_expr(expr.args[2], ctx, True)
+        elif len(expr.args) == 2:
+            ii.append(('f64.const', 0))
+            _compile_expr(expr.args[1], ctx, True)
+        ii.append('f64.sub')
         if not push_stack:
             ii.append('drop')
     
@@ -173,17 +238,23 @@ def _compile_call(expr, ctx, push_stack=True):
         if not push_stack:
             ii.append('drop')
     
-    elif name == 'gt':
+    elif name == 'mod':
+        # todo: this is fragile. E.g. for negative numbers
         _compile_expr(expr.args[1], ctx, True)
         _compile_expr(expr.args[2], ctx, True)
-        ii = ['f64.gt']
-        if not push_stack:
-            ii.append('drop')
+         # push again
+        _compile_expr(expr.args[1], ctx, True)
+        _compile_expr(expr.args[2], ctx, True)
+        ii = []
+        ii.append(('f64.div'))
+        ii.append(('f64.floor'))
+        ii.append(('f64.mul'))  # consumes last right
+        ii.append(('f64.sub'))  # consumes last left
     
-    elif name == 'lt':
+    elif name in ('eq', 'gt', 'lt', 'ge', 'le'):
         _compile_expr(expr.args[1], ctx, True)
         _compile_expr(expr.args[2], ctx, True)
-        ii = ['f64.lt']
+        ii = ['f64.' + name]
         if not push_stack:
             ii.append('drop')
     
@@ -192,6 +263,11 @@ def _compile_call(expr, ctx, push_stack=True):
             raise RuntimeError('Print needs exactly one argument')
         _compile_expr(expr.args[1], ctx, True)
         ii = [('call', PRINT_FUNC_ID)]
+    elif name == 'perf_counter':  # Provided by host
+        if nargs != 0:
+            raise RuntimeError('perf_counter needs exactly zero arguments')
+        ii = [('call', PERF_COUNTER_FUNC_ID)]
+    
     else:
         raise RuntimeError('Unknown function %r' % name)
     ctx.instructions.extend(ii)

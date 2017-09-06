@@ -9,25 +9,35 @@ from zf_codegen import compile
 
 
 EXAMPLE = """
-# asd
-a = 2 + 3 + 1
-b = 9 - 3 * 2 + 2
-b += 31
-print(a + b)
+max = 10001
+n = 0
+i = -1
+t0 = perf_counter()
 
-c = 2
-if a > 25
-    c = 3
-else
-    c = 4
-print(c)
+loop while n < max
+    i = i + 1
+    
+    if i <= 1
+        continue  # nope
+    elseif i == 2
+        n = n + 1
+    else
+        gotit = 1
+        # loop j in 2..i//2 + 1
+        j = 2
+        loop while j < i / 2 + 1
+            j += 1
+            if i % j == 0
+                gotit = 0
+                break
+        if gotit == 1
+            n = n + 1
 
-d = if a > 25 do 2 else 4
-print(d)
-print(if a > 25 do 20 else 40)
+print(perf_counter() - t0)
+print(i)
 """
 
-tokens = tokenize(EXAMPLE, __file__, 11)
+tokens = tokenize(EXAMPLE, __file__, 59)
 ast = parse(tokens)
 ast.show()
 print('---')

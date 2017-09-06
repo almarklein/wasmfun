@@ -46,16 +46,22 @@ class Expr:
     * block: *expressions
     * assign: target-exp (identifier or tuple), expression
     * if: test_exp, body_block, and optionally an else_block
+    * loop: (body_block), (while_expression, body_block), ... todo
     * call: expression (often an identifier), arg1-expr, arg2-expr, ...
     
     Expressions that are leaf nodes:
     
     * identifier: the name
     * literal: the text that makes up the literal
+    * continue
+    * break
+    * return
+    
     """
     
-    KINDS = ['block', 'assign', 'if', 'for', 'do', 'identifier', 'call',
-             'literal',  # or a literal for each kind?
+    KINDS = ['block', 'assign', 'if', 'loop', 'call',
+             'continue', 'break', 'return',
+             'identifier', 'literal',  # or a literal for each kind?
              'index', # or subscript?
              'bracethingy',  # group or tuple, not known at creation time
              ]
@@ -84,12 +90,24 @@ class Expr:
                 print('    ' * (indent + 1) + e)
 
 
-opcallmap = {'+': 'add', '-': 'sub', '*': 'mul', '/': 'div',
+opcallmap = {'%': 'mod', '^': 'pow',
+             '+': 'add', '-': 'sub', '*': 'mul', '/': 'div',
              '==': 'eq', '>': 'gt', '<': 'lt',
+             '>=': 'ge', '<=': 'le',
              }
 
 # ops for which multiple args can be combined into a single call with > 2 args
 multiops = 'add', 'mul', # 'sub', 'div'
+
+TOKEN_PRECEDENCE = [('^', ), ('%', ), ('*', '/'), ('+', '-'), ('==', '>', '<', '>=', '<=')]
+
+# Test that TOKEN_PRECEDENCE covers all ops
+for op in opcallmap:
+    hasit = False
+    for ops in TOKEN_PRECEDENCE:
+        if op in ops:
+            hasit = True
+    assert hasit
 
 
 def _resolve_expressions(expression_chain):
@@ -97,7 +115,7 @@ def _resolve_expressions(expression_chain):
     into single expression by taking priority rules into account.
     """
     chain = expression_chain.copy()
-    for ops in [('*', '/'), ('+', '-'), ('==', '>', '<', '>=', '<=')]:
+    for ops in TOKEN_PRECEDENCE:
         i = 0
         while i < len(chain):
             if isinstance(chain[i], Token) and chain[i].text in ops:
@@ -322,7 +340,9 @@ class ZoofParser(RecursiveDescentParser):
                 if kw == 'if':
                     self.handle_if()
                 elif kw == 'loop':
-                    assert False
+                    self.handle_loop()
+                elif kw in ('continue', 'break'):
+                    self.pending.append(Expr(kw, self.consume(TYPES.keyword)))
             elif token_type == TYPES.assign: # todo: maybe = should also be an operator, can take part in precedence climbing
                 self.handle_assign()
             elif token_type == TYPES.operator:
@@ -333,7 +353,7 @@ class ZoofParser(RecursiveDescentParser):
                 self.handle_identifier()
             elif token_type == TYPES.bracket:
                 if self.token.text in ')]}':  # todo: is this the way to go?
-                    assert self.pending
+                    # assert self.pending
                     self.finish_pending()
                     break
                 else:
@@ -404,7 +424,7 @@ class ZoofParser(RecursiveDescentParser):
                 if ind > 0:
                     self.error('Unexpected indent.')
                 elif ind < 0:
-                    if len(token.text) != prev_indent:
+                    if len(token.text) > prev_indent:
                         self.error('Unexpected dedent.')
                     else:
                         break
@@ -447,6 +467,7 @@ class ZoofParser(RecursiveDescentParser):
         self.parse_body('if')
         # Get any elseif clauses
         if self.peak_kw_skip_newline('elseif'):
+            # todo: wrap it in a block?
             self.handle_if()  # recurse
             self.finish_pending()
         elif self.peak_kw_skip_newline('else'):
@@ -454,14 +475,28 @@ class ZoofParser(RecursiveDescentParser):
             self.parse_body('else', False)
         exp = self.pop()
         self.pending.append(exp)  # note that self.pop() sets self.pending
+    
+    def handle_loop(self):
+        self.push(Expr('loop', self.token))
+        assert self.consume(TYPES.keyword).text == 'loop'
         
-        # while self.consume_if_kw_skip_newline('elseif'):
-        #     self.parse_expression()
-        #     self.parse_body('elseif')
-        # if self.consume_if_kw_skip_newline('else'):
-        #     self.parse_body('else', False)
-        # exp = self.pop()
-        # self.pending.append(exp)  # note that self.pop() sets self.pending
+        # todo: should we turn a loop-while into an loop-inf with an if?
+        
+        if self.peak_kw == 'do' or self.peak == TYPES.linestart:
+            # loop-inf
+            self.parse_body('loop')
+        elif self.peak_kw == 'while':
+            # loop-while
+            self.consume(TYPES.keyword)
+            self.parse_expression()  # test
+            self.parse_body('loop')
+        else:  # looks like loop-in then
+            raise NotImplementedError()
+        
+        # todo: add end-while expression
+        
+        exp = self.pop()
+        self.pending.append(exp)
     
     def handle_literal(self):
         token = self.consume()  # number or string
@@ -571,7 +606,8 @@ if __name__ == '__main__':
     if a > 2
         b = 1
         b = 2
-   
+        if a > 3
+            b = 3
     """
     
     tokens = tokenize(EXAMPLE2, __file__, 565)
