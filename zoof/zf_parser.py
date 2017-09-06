@@ -45,7 +45,7 @@ class Expr:
     
     * block: *expressions
     * assign: target-exp (identifier or tuple), expression
-    * if: test_exp, body_block, [elseif_test_block, elseif_body], else_block
+    * if: test_exp, body_block, and optionally an else_block
     * call: expression (often an identifier), arg1-expr, arg2-expr, ...
     
     Expressions that are leaf nodes:
@@ -269,6 +269,19 @@ class ZoofParser(RecursiveDescentParser):
                 return True
         return False
     
+    def peak_kw_skip_newline(self, kw):
+        """ Peak, skipping newlines. Con
+        """
+        i = self.token_index
+        if self.peak == TYPES.linestart:
+            i += 1
+        if i < len(self.tokens):
+            if self.tokens[i].type == TYPES.keyword and self.tokens[i].text == kw:
+                if self.token_index != i:
+                    self.next_token()
+                return True
+        return False
+    
     ## High level parse functions
     
     def parse(self, tokens):
@@ -427,20 +440,28 @@ class ZoofParser(RecursiveDescentParser):
     ## Low level parse functions
     
     def handle_if(self):
-        # todo: put elif flat in args or stack in a tree of else-if nodes like Py does? What does Julia do?
         self.push(Expr('if', self.token))
-        assert self.consume(TYPES.keyword).text == 'if'
+        assert self.consume(TYPES.keyword).text in ('if', 'elseif')
         # Get test-expression and corresponding body
         self.parse_expression()
         self.parse_body('if')
         # Get any elseif clauses
-        while self.consume_if_kw_skip_newline('elseif'):
-            self.parse_expression()
-            self.parse_body('elseif')
-        if self.consume_if_kw_skip_newline('else'):
+        if self.peak_kw_skip_newline('elseif'):
+            self.handle_if()  # recurse
+            self.finish_pending()
+        elif self.peak_kw_skip_newline('else'):
+            self.consume(TYPES.keyword)
             self.parse_body('else', False)
         exp = self.pop()
         self.pending.append(exp)  # note that self.pop() sets self.pending
+        
+        # while self.consume_if_kw_skip_newline('elseif'):
+        #     self.parse_expression()
+        #     self.parse_body('elseif')
+        # if self.consume_if_kw_skip_newline('else'):
+        #     self.parse_body('else', False)
+        # exp = self.pop()
+        # self.pending.append(exp)  # note that self.pop() sets self.pending
     
     def handle_literal(self):
         token = self.consume()  # number or string
@@ -549,12 +570,11 @@ if __name__ == '__main__':
     a += 2
     if a > 2
         b = 1
-        b = 3
-    else
         b = 2
+   
     """
     
-    tokens = tokenize(EXAMPLE2, __file__, 542)
+    tokens = tokenize(EXAMPLE2, __file__, 565)
     
     ast = parse(tokens)
     # ast = parse(tokens)
