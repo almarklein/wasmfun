@@ -19,6 +19,8 @@ class ZoofCompilerError(SyntaxError):
 
 
 class Context:
+    """ A context keeps track of things while we walk the AST tree.
+    """
     
     def __init__(self):
         self.instructions = []
@@ -32,9 +34,24 @@ class Context:
         return self.names[name]
 
 
-def compile(ast):
+def compile(code):
+    """ Compile Zoof code (in the form of a string, a list of tokens, or an Expr
+    object) to a WASM module.
+    """
+    if isinstance(code, str):
+        code = tokenize(code)
+    if isinstance(code, list):
+        code = parse(code)
+    if isinstance(code, Expr):
+        return generate_code(code)
+    else:
+        raise TypeError('compile() needs code as string, list of tokens, or Exp.')
+
+
+def generate_code(ast):
     """ Compile expressions (that make up an AST) to WASM instuctions.
     """
+    assert isinstance(ast, Expr)
     assert ast.kind == 'block'
     ctx = compile_func(ast)
     locals = ['f64' for i in ctx.names]
@@ -65,7 +82,7 @@ def _compile_expr(expr, ctx, push_stack=True):
     if expr.kind == 'assign':
         # Get name index to store value
         assert expr.args[0].kind == 'identifier'
-        name = expr.args[0].args[0]
+        name = expr.args[0].token.text
         name_idx = ctx.name_idx(name)
         # Compute value
         _compile_expr(expr.args[1], ctx, True)
@@ -79,11 +96,11 @@ def _compile_expr(expr, ctx, push_stack=True):
         _compile_call(expr, ctx, push_stack)
     
     elif expr.kind == 'identifier':
-        name = expr.args[0]
+        name = expr.token.text
         ctx.instructions.append(('get_local', ctx.names[name]))
     
     elif expr.kind == 'literal':
-        value = float(expr.args[0])
+        value = float(expr.token.text)
         ctx.instructions.append(('f64.const', value))
     
     elif expr.kind == 'if':
@@ -125,8 +142,8 @@ def _compile_call(expr, ctx, push_stack=True):
     in the defined functions as well.
     """
     assert expr.args[0].kind == 'identifier'
-    name = expr.args[0].args[0]
-    nargs = len(expr.args) - 1
+    name = expr.args[0].token.text
+    nargs = len(expr.args) - 1  # subtract name of fuction
     
     if name == 'add':  # todo: add can have more than 2 values
         for arg in expr.args[1:]:
@@ -135,21 +152,21 @@ def _compile_call(expr, ctx, push_stack=True):
         if not push_stack:
             ii.append('drop')
     
-    elif name == 'subtract':
+    elif name == 'sub':
         _compile_expr(expr.args[1], ctx, True)
         _compile_expr(expr.args[2], ctx, True)
         ii = ['f64.sub']
         if not push_stack:
             ii.append('drop')
     
-    elif name == 'mult':
+    elif name == 'mul':
         _compile_expr(expr.args[1], ctx, True)
         _compile_expr(expr.args[2], ctx, True)
         ii = ['f64.mul']
         if not push_stack:
             ii.append('drop')
         
-    elif name == 'divide':
+    elif name == 'div':
         _compile_expr(expr.args[1], ctx, True)
         _compile_expr(expr.args[2], ctx, True)
         ii = ['f64.div']
