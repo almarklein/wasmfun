@@ -21,13 +21,19 @@ def parse(tokens):
     """ Parse a series of tokens and return the corresponding AST tree.
     """
     p = ZoofParser()
-    tree = p.parse(tokens)
+    try:
+        tree = p.parse(tokens)
+    except ZoofSyntaxError as err:
+        raise err  # has full backtrace, easier during dev
+        # raise ZoofSyntaxError(err.zoof_token, err.zoof_msg)
     return tree
 
 
 class ZoofSyntaxError(SyntaxError):
     
     def __init__(self, token, msg):
+        self.zoof_token = token
+        self.zoof_msg = msg
         at = ' at line %i:%i' % (token.linenr, token.column)
         super().__init__(msg + at + token.get_location_info())
     
@@ -59,7 +65,8 @@ class Expr:
     
     """
     
-    KINDS = ['block', 'assign', 'if', 'loop', 'call',
+    KINDS = ['block', 'func', 'tuple',  # tuple/block/function-args?
+             'assign', 'if', 'loop', 'call',
              'continue', 'break', 'return',
              'identifier', 'literal',  # or a literal for each kind?
              'index', # or subscript?
@@ -99,6 +106,9 @@ opcallmap = {'%': 'mod', '^': 'pow',
 # ops for which multiple args can be combined into a single call with > 2 args
 multiops = 'add', 'mul', # 'sub', 'div'
 
+# todo: ^ should probably right-associate
+# Elm: http://elmprogramming.com/simple-arithmetic.html
+# Julia: xx
 TOKEN_PRECEDENCE = [('^', ), ('%', ), ('*', '/'), ('+', '-'), ('==', '>', '<', '>=', '<=')]
 
 # Test that TOKEN_PRECEDENCE covers all ops
@@ -343,6 +353,10 @@ class ZoofParser(RecursiveDescentParser):
                     self.handle_loop()
                 elif kw in ('continue', 'break'):
                     self.pending.append(Expr(kw, self.consume(TYPES.keyword)))
+                elif kw == 'func':
+                    self.handle_func()
+                elif kw == 'return':
+                    self.handle_return()
             elif token_type == TYPES.assign: # todo: maybe = should also be an operator, can take part in precedence climbing
                 self.handle_assign()
             elif token_type == TYPES.operator:
@@ -458,6 +472,42 @@ class ZoofParser(RecursiveDescentParser):
         self.exp.args.append(block)  # similar to what parse_expression does
     
     ## Low level parse functions
+    
+    def handle_func(self):
+        self.push(Expr('func', self.token))
+        assert self.consume(TYPES.keyword).text == 'func'
+        # Consume name - use as token for func expr
+        if self.peak == TYPES.identifier:
+            self.exp.token = self.consume(TYPES.identifier)
+        # Consume args
+        arg_expr = Expr('tuple', self.token)  # use ( token as ref
+        self.exp.args.append(arg_expr)
+        assert self.consume(TYPES.bracket).text == '('
+        if self.peak == TYPES.identifier:
+            arg_expr.args.append(self.consume(TYPES.identifier).text)
+        assert self.consume(TYPES.bracket).text == ')'
+        # Consume body
+        # todo: can also be a one-liner
+        if self.token.text != '{':
+            self.error('Expecting { to start function body')
+        self.consume(TYPES.bracket)
+        block = self.parse_expressions()
+        self.consume(TYPES.linestart)
+        if self.token.text != '}':
+            self.error('Expecting } to end function body')
+        self.consume(TYPES.bracket)
+        self.exp.args.append(block)
+        # Nearly done
+        exp = self.pop()
+        self.pending.append(exp)  # note that self.pop() sets self.pending
+    
+    def handle_return(self):
+        self.push(Expr('return', self.token))
+        assert self.consume(TYPES.keyword).text == 'return'
+        if self.peak not in (TYPES.linestart, ):
+            self.parse_expression()
+        exp = self.pop()
+        self.pending.append(exp)  # note that self.pop() sets self.pending
     
     def handle_if(self):
         self.push(Expr('if', self.token))
@@ -600,17 +650,23 @@ if __name__ == '__main__':
     """
     
     EXAMPLE2 = """
-    # asd
-    a = 3
-    a += 2
-    if a > 2
-        b = 1
-        b = 2
-        if a > 3
-            b = 3
+    # a comment
+    func foo () {
+        a = 3
+        a += 2
+        if a > 2
+            b = 1
+            b = 2
+            if a > 3
+                b = 3
+    }
+    
+    func bar (a) {
+        return a + 2
+    }
     """
     
-    tokens = tokenize(EXAMPLE2, __file__, 565)
+    tokens = tokenize(EXAMPLE2, __file__, 635)
     
     ast = parse(tokens)
     # ast = parse(tokens)
