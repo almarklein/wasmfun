@@ -13,17 +13,56 @@ from zf_parser import Expr, parse
 # through wasmtools), at least for the instructions.
 
 
+def compile(code):
+    """ Compile Zoof code (in the form of a string, a list of tokens, or an Expr
+    object) to a WASM module.
+    """
+    if isinstance(code, str):
+        code = tokenize(code)
+    if isinstance(code, list):
+        code = parse(code)
+    if isinstance(code, Expr):
+        return generate_code(code)
+    else:
+        raise TypeError('compile() needs code as string, list of tokens, or Exp.')
+
+
+def generate_code(ast):
+    """ Compile expressions (that make up an AST) to WASM instuctions.
+    """
+    assert isinstance(ast, Expr)
+    assert ast.kind == 'block'
+    
+    # Create Module context. This will do an initial pass to get all
+    # funciton definitions (and indices) straight.
+    m = ModuleContext(ast)
+    
+    # Compile all the things
+    for context in m.all_functions:
+        context.compile()
+    
+    module = m.to_wasm()
+    return module
+
+
+##
+
 # todo: can we add line number info to expressions?
 class ZoofCompilerError(SyntaxError):
     pass
 
 
-class Context:
-    """ A context keeps track of things while we walk the AST tree.
-    """
+
+class BaseContext:
     
-    def __init__(self):
+    def __init__(self, body):
+        assert isinstance(body, Expr) and body.kind == 'block'
+        self._body = body
+        
+        self._expressions = []
+        self._functions = []
         self.instructions = []
+        
         self.names = {}
         self._name_counter = 0
         self._block_stack = []
@@ -45,49 +84,143 @@ class Context:
         for i, kind in enumerate(reversed(self._block_stack)):
             if kind in ('loop'):
                 return i
+    
+    def add_function(self, ctx):
+        assert isinstance(ctx, FunctionContext)
+        self._functions.append(ctx)  # [ctx.name] = ctx
+    
+    # def get_function_idx(self, name):
+    #     if name in self._functions:
+    #         return self._functions[name]._idx
+    #     else:
+    #         raise NotImplementedError('todo: also look in parent context')
+    
+    def _collect_functions(self, expr):
+        """ Walk the ast in search of functions, which we collect into
+        a FunctionContext.
+        """
+        
+        # todo: this pass should also resolve imports and globals
+        
+        if expr.kind == 'func':
+            raise NotImplementedError()
+        elif expr.kind == 'block':
+            new_expressions = []
+            for sub_expr in expr.args:
+                if sub_expr.kind == 'func':
+                    # todo: the function might use nonlocals, which might be globals
+                    func_ctx = FunctionContext(self, sub_expr)
+                    self.add_function(func_ctx)
+                else:
+                    new_expressions.append(sub_expr)
+                    self._collect_functions(sub_expr)
+            expr.args = new_expressions
+        else:
+            for sub_expr in expr.args:
+                self._collect_functions(sub_expr)
+    
+    def compile(self):
+        for expr in self._body.args:
+            _compile_expr(expr, self, False)
 
 
-def compile(code):
-    """ Compile Zoof code (in the form of a string, a list of tokens, or an Expr
-    object) to a WASM module.
+class ModuleContext(BaseContext):
+    """ Keep track of module-level things, like globals and functions.
     """
-    if isinstance(code, str):
-        code = tokenize(code)
-    if isinstance(code, list):
-        code = parse(code)
-    if isinstance(code, Expr):
-        return generate_code(code)
-    else:
-        raise TypeError('compile() needs code as string, list of tokens, or Exp.')
+    
+    def __init__(self, expr):
+        super().__init__(expr)
+        
+        self._imported_globals = []
+        self._globals = []
+        self._imported_functions = dict(print=0, perf_counter=1)
+        
+        self._collect_functions(self._body)
+        self._collect_all_functions_and_assign_ids()
+    
+    def _collect_all_functions_and_assign_ids(self):
+        
+        # todo: mmm, the wf.Module class can resolve names to indices for us
+        # -> or is it better to do it here?
+        
+        # Now collect all functions defined in this module
+        contexts = [self]
+        count = len(self._imported_functions)
+        all_functions = [self]
+        while len(contexts) > 0:
+            ctx = contexts.pop(0)
+            for sub in ctx._functions:
+                contexts.append(sub)
+                all_functions.append(sub)
+                sub._idx = count
+                count += 1
+        self.all_functions = all_functions
+    
+    def to_wasm(self):
+        """ Create wasm Module object.
+        """
+        # This is also the main function
+        locals = ['f64' for i in self.names]
+        main_func = wf.Function('$main', [], [], locals, self.instructions)
+        
+        # Add imported funcs
+        funcs = []
+        funcs.append(wf.ImportedFuncion('print_ln', ['f64'], [], 'js', 'print_ln'))
+        funcs.append(wf.ImportedFuncion('perf_counter', [], ['f64'], 'js', 'perf_counter'))
+        
+        # Add main funcs and other funcs
+        funcs.append(main_func)
+        for ctx in self.all_functions[1:]:
+            funcs.append(ctx.to_wasm())
+        
+        # Compose module
+        return wf.Module(*funcs)
 
 
-def generate_code(ast):
-    """ Compile expressions (that make up an AST) to WASM instuctions.
+class FunctionContext(BaseContext):
+    """ A context keeps track of things while we walk the AST tree.
+    Each context represents a block-expression, e.g. the main scope or
+    a function definition.
     """
-    assert isinstance(ast, Expr)
-    assert ast.kind == 'block'
-    ctx = compile_func(ast)
-    locals = ['f64' for i in ctx.names]
     
-    module = wf.Module(
-        wf.ImportedFuncion('print_ln', ['f64'], [], 'js', 'print_ln'),
-        wf.ImportedFuncion('perf_counter', [], ['f64'], 'js', 'perf_counter'),
-        wf.Function('$main', [], [], locals, ctx.instructions),
-        )
-    
-    return module
+    def __init__(self, parent, expr):
+        assert isinstance(parent, BaseContext)
+        assert expr.kind == 'func'
+        super().__init__(expr.args[1])
+        
+        self._parent = parent  # parent context
+        self._name = expr.token.text
 
+        # Init index, is set by the module
+        self._idx = -1
+        
+        # Init return type
+        self._ret_types = None
+        
+        # Process args
+        self._arg_types = []
+        for arg in expr.args[0].args:
+            self.name_idx(arg)
+            self._arg_types.append('f64')
+        
+        self._collect_functions(self._body)
 
-def compile_func(expr):
-    """ Compile a single function.
-    """
-    assert expr.kind == 'block'
-    ctx = Context()
+    def set_return_type(self, ret_types):
+        # todo: we should check the rt of every branch
+        rt = tuple(ret_types)
+        if self._ret_types is not None:
+            assert rt == self._ret_types
+        else:
+            self._ret_types = rt
     
-    for e in expr.args:
-        _compile_expr(e, ctx, False)
-    
-    return ctx
+    def to_wasm(self):
+        """ Create wasm Function object.
+        """
+        arg_types = self._arg_types
+        ret_types = self._ret_types or []
+        locals = ['f64' for i in self.names]
+        
+        return wf.Function(self._name, arg_types, ret_types, locals, self.instructions)
 
 
 def _compile_expr(expr, ctx, push_stack=True):
@@ -190,6 +323,15 @@ def _compile_expr(expr, ctx, push_stack=True):
         # branch to block that surrounds the loop, i.e. after the loop
         ctx.instructions.append(('br', ctx.get_block_level() + 1))
     
+    elif expr.kind == 'func':
+        assert False, 'We have collected func nodes'
+    
+    elif expr.kind == 'return':
+        assert len(expr.args) == 1, 'The WASM v1 only supports 1 output arg'
+        for ret_arg in expr.args:
+            _compile_expr(ret_arg, ctx, True)
+        ctx.instructions.append(('return', ))
+        ctx.set_return_type(['f64' for name in expr.args])
     else:
         raise RuntimeError('Unknown expression kind %r' % expr.kind)
 
@@ -269,5 +411,10 @@ def _compile_call(expr, ctx, push_stack=True):
         ii = [('call', PERF_COUNTER_FUNC_ID)]
     
     else:
-        raise RuntimeError('Unknown function %r' % name)
+        for arg in expr.args[1:]:
+            _compile_expr(arg, ctx, True)
+        ii = [('call', name)]  # name, or idx? where to resolve function indices?
+        
+        # raise RuntimeError('Unknown function %r' % name)
+    
     ctx.instructions.extend(ii)

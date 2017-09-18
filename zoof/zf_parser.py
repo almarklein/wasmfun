@@ -50,6 +50,7 @@ class Expr:
     Expressions that hold sub expressions:
     
     * block: *expressions
+    * func: func_args_tuple, body_block. The name is represented by the token
     * assign: target-exp (identifier or tuple), expression
     * if: test_exp, body_block, and optionally an else_block
     * loop: (body_block), (while_expression, body_block), ... todo
@@ -488,9 +489,13 @@ class ZoofParser(RecursiveDescentParser):
         assert self.consume(TYPES.bracket).text == ')'
         # Consume body
         # todo: can also be a one-liner
-        if self.token.text != '{':
+        if self.token.text == '{':
+            self.consume(TYPES.bracket)
+        elif self.peak == TYPES.linestart:
+            self.consume(TYPES.linestart)
+            self.consume(TYPES.bracket)
+        else:
             self.error('Expecting { to start function body')
-        self.consume(TYPES.bracket)
         block = self.parse_expressions()
         self.consume(TYPES.linestart)
         if self.token.text != '}':
