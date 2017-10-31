@@ -132,7 +132,7 @@ def _resolve_expressions(expression_chain):
             if isinstance(chain[i], Token) and chain[i].text in ops:
                 token = chain[i]
                 funcname = opcallmap[chain[i].text]
-                optoken = Token('operator', funcname, token.filename, token.linenr, token.column)
+                optoken = Token('operator', funcname + '1'*(i==0), token.filename, token.linenr, token.column)
                 if i == 0:
                     # unary
                     assert isinstance(chain[i+1], Expr)
@@ -373,12 +373,19 @@ class ZoofParser(RecursiveDescentParser):
                     break
                 else:
                     self.handle_bracket()
+            elif token_type == TYPES.instr:
+                self.handle_instr()
             elif token_type == TYPES.attr:
                 # Attribute access. We don't call it an operator
                 raise NotImplementedError()
             elif token_type == TYPES.sep:
                 # Separator for tuples and function arguments
-                raise NotImplementedError()
+                if self.exp.kind == 'call':
+                    self.consume('sep')
+                    self.finish_pending()
+                    continue
+                else:
+                    raise NotImplementedError()
             elif token_type == TYPES.unknown:
                 raise ZoofSyntaxError(self.token, 'Unknown token')
             elif token_type == TYPES.eof:
@@ -484,8 +491,12 @@ class ZoofParser(RecursiveDescentParser):
         arg_expr = Expr('tuple', self.token)  # use ( token as ref
         self.exp.args.append(arg_expr)
         assert self.consume(TYPES.bracket).text == '('
-        if self.peak == TYPES.identifier:
+        while self.peak == TYPES.identifier:
             arg_expr.args.append(self.consume(TYPES.identifier).text)
+            if self.peak == TYPES.sep:
+                self.consume(TYPES.sep)
+                continue
+            break
         assert self.consume(TYPES.bracket).text == ')'
         # Consume body
         # todo: can also be a one-liner
@@ -564,6 +575,12 @@ class ZoofParser(RecursiveDescentParser):
         if self.pending and isinstance(self.pending[-1], Expr):
             raise ZoofSyntaxError(token, 'Unexpected identifier')
         self.pending.append(Expr('identifier', token))
+    
+    def handle_instr(self):  # a function call representing a compiler instruction
+        token = self.consume(TYPES.instr)
+        if self.pending and isinstance(self.pending[-1], Expr):
+            raise ZoofSyntaxError(token, 'Unexpected compiler instruction')
+        self.pending.append(Expr('identifier', token))  # we encode it as an identifier
     
     def handle_assign(self):
         token = self.consume(TYPES.assign) 
@@ -666,12 +683,12 @@ if __name__ == '__main__':
                 b = 3
     }
     
-    func bar (a) {
-        return a + 2
+    func bar(a, b) {
+        return @@wasm.f32.add(a, b)
     }
     """
     
-    tokens = tokenize(EXAMPLE2, __file__, 635)
+    tokens = tokenize(EXAMPLE2, __file__, 672)
     
     ast = parse(tokens)
     # ast = parse(tokens)

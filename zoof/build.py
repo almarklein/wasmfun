@@ -5,7 +5,9 @@ import wasmfun as wf
 
 from zf_tokenizer import tokenize
 from zf_parser import parse
-from zf_codegen import compile
+from zf_codegen import compile, STD
+
+# todo: use special char (that is invalid in Zoof itself) instead of underscore
 
 
 EXAMPLE = """
@@ -40,7 +42,7 @@ print(result)
 
 
 
-tokens = tokenize(EXAMPLE, __file__, 59)
+tokens = tokenize(STD + EXAMPLE, __file__, 59)
 ast = parse(tokens)
 ast.show()
 print('---')

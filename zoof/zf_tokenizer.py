@@ -39,7 +39,7 @@ class TYPES:
     _all = ('comment', 'identifier', 'keyword', 'number', 'string',
             'multilinestring', 'statementsep', 'bracket', 'attr', 'sep',
             'operator', 'assign',
-            'linestart', 'unknown', 'eof',
+            'linestart', 'instr', 'unknown', 'eof',
             )
 
 for token_name in TYPES._all:
@@ -175,6 +175,22 @@ def find_rest_of_string(text, i):
     return i, lines_skipped
 
 
+def find_rest_of_meta_or_compiler_instruction(text, i):
+    
+    if len(text) < i + 3:
+        return 'unknown', i + 1
+    
+    if text[i+1] != '@':
+        return 'unknown', i + 1
+    
+    i += 2
+    while i < len(text):
+        c = text[i]
+        if not (c.isalnum() or c in '_.'):
+            break
+        i += 1
+    return 'instr', i
+    
 # def find_rest_of_multiline_string(text, i):
 #     escape = False
 #     count = 0
@@ -282,6 +298,12 @@ def tokenize(text, filename='', linenr_offset=1):
             tokens.append(Token(name, c, *loc))
             i += len(c)
         
+        elif c == '@':
+            kind, i2 = find_rest_of_meta_or_compiler_instruction(text, i)
+            token = Token(kind, text[i:i2], *loc)
+            tokens.append(token)
+            i = i2
+        
         else:
             token = Token('unknown', text[i], *loc)
             tokens.append(token)
@@ -294,7 +316,9 @@ def tokenize(text, filename='', linenr_offset=1):
 if __name__ == '__main__':
     
     EXAMPLE1 = '''
-    a = 3
+    func add(a, b) {
+        @@wasm.f32.add(a, b)
+    }
     '''
     
     EXAMPLE2 = '''

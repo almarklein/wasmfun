@@ -207,6 +207,12 @@ class FunctionContext(BaseContext):
 
     def set_return_type(self, ret_types):
         # todo: we should check the rt of every branch
+        
+        # todo: awful hack
+        if self._name in ('eq', 'lt', 'le', 'gt', 'ge'):
+            self._ret_types = ('i32', )
+            return
+        
         rt = tuple(ret_types)
         if self._ret_types is not None:
             assert rt == self._ret_types
@@ -347,58 +353,13 @@ def _compile_call(expr, ctx, push_stack=True):
     name = expr.args[0].token.text
     nargs = len(expr.args) - 1  # subtract name of fuction
     
-    if name == 'add':  # todo: add can have more than 2 values
-        for arg in expr.args[1:]:
-            _compile_expr(arg, ctx, True)
-        ii = ['f64.add'] * (nargs - 1)
-        if not push_stack:
-            ii.append('drop')
-    
-    elif name == 'sub':
-        ii = []
-        if len(expr.args) == 3:
-            _compile_expr(expr.args[1], ctx, True)
-            _compile_expr(expr.args[2], ctx, True)
-        elif len(expr.args) == 2:
-            ii.append(('f64.const', 0))
-            _compile_expr(expr.args[1], ctx, True)
-        ii.append('f64.sub')
-        if not push_stack:
-            ii.append('drop')
-    
-    elif name == 'mul':
-        _compile_expr(expr.args[1], ctx, True)
-        _compile_expr(expr.args[2], ctx, True)
-        ii = ['f64.mul']
-        if not push_stack:
-            ii.append('drop')
-        
-    elif name == 'div':
-        _compile_expr(expr.args[1], ctx, True)
-        _compile_expr(expr.args[2], ctx, True)
-        ii = ['f64.div']
-        if not push_stack:
-            ii.append('drop')
-    
-    elif name == 'mod':
-        # todo: this is fragile. E.g. for negative numbers
-        _compile_expr(expr.args[1], ctx, True)
-        _compile_expr(expr.args[2], ctx, True)
-         # push again
-        _compile_expr(expr.args[1], ctx, True)
-        _compile_expr(expr.args[2], ctx, True)
-        ii = []
-        ii.append(('f64.div'))
-        ii.append(('f64.floor'))
-        ii.append(('f64.mul'))  # consumes last right
-        ii.append(('f64.sub'))  # consumes last left
-    
-    elif name in ('eq', 'gt', 'lt', 'ge', 'le'):
-        _compile_expr(expr.args[1], ctx, True)
-        _compile_expr(expr.args[2], ctx, True)
-        ii = ['f64.' + name]
-        if not push_stack:
-            ii.append('drop')
+    if name.startswith('@@'):
+        # Compiler instruction
+        if not name.startswith('@@wasm.'):
+            raise ZoofCompilerError('Zoon compiler instructions currenly only start with "wasm."')
+        args = [ctx.names[arg.token.text] if arg.kind == 'identifier' else float(arg.token.text) for arg in expr.args[1:]]
+        ii = [(name[7:], ) + tuple(args)]
+        # never drop
     
     elif name == 'print':  # Provided by host
         if nargs != 1:
@@ -418,3 +379,58 @@ def _compile_call(expr, ctx, push_stack=True):
         # raise RuntimeError('Unknown function %r' % name)
     
     ctx.instructions.extend(ii)
+
+
+STD = """
+
+func sub1(a) {
+    @@wasm.f64.const(0.0)
+    @@wasm.get_local(a)
+    return @@wasm.f64.sub()
+}
+func sub(a, b) {
+    @@wasm.get_local(a)
+    @@wasm.get_local(b)
+    return @@wasm.f64.sub()
+}
+func add(a, b) {
+    @@wasm.get_local(a)
+    @@wasm.get_local(b)
+    return @@wasm.f64.add()
+}
+func lt(a, b) {
+    @@wasm.get_local(a)
+    @@wasm.get_local(b)
+    return @@wasm.f64.lt()
+}
+func le(a, b) {
+    @@wasm.get_local(a)
+    @@wasm.get_local(b)
+    return @@wasm.f64.le()
+}
+func eq(a, b) {
+    @@wasm.get_local(a)
+    @@wasm.get_local(b)
+    return @@wasm.f64.eq()
+}
+func div(a, b) {
+    @@wasm.get_local(a)
+    @@wasm.get_local(b)
+    return @@wasm.f64.div()
+}
+func mul(a, b) {
+    @@wasm.get_local(a)
+    @@wasm.get_local(b)
+    return @@wasm.f64.mul()
+}
+func mod(a, b) {
+    @@wasm.get_local(a)
+    @@wasm.get_local(b)
+    @@wasm.get_local(a)
+    @@wasm.get_local(b)
+    @@wasm.f64.div()
+    @@wasm.f64.floor()
+    @@wasm.f64.mul()
+    return @@wasm.f64.sub()
+}
+"""
