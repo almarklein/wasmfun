@@ -1,12 +1,20 @@
 """
 Code generator for the experimental WIP Zoof lang. It takes the AST produced
 by the parser and converts it to WASM.
+
+
+Tokenization: source code -> tokens
+parsing: tokens -> ast-tree
+modularize: ast-tree -> Module context with multiple function contexts that have ast-trees
+optimization: module context -> module context with optimized ast-trees
+code generations: module context -> wasm module
 """
 
 import wasmfun as wf
 
 from zf_tokenizer import tokenize
 from zf_parser import Expr, parse
+from zf_std import STD
 
 
 # todo: eventually this should produce WASM more directly (without first going
@@ -37,6 +45,11 @@ def generate_code(ast):
     # funciton definitions (and indices) straight.
     m = ModuleContext(ast)
     
+    # Optimize
+    m.optimize_inline()
+    for func in m._functions.values():
+        func.optimize_inline()
+    
     # Compile all the things
     for context in m.all_functions:
         context.compile()
@@ -54,13 +67,19 @@ class ZoofCompilerError(SyntaxError):
 
 
 class BaseContext:
+    """ A context is a wrapper for certain nodes in the AST tree that represent
+    an execution context or scopre, such as modules and functions. They are
+    placeholders for information about the scope, such as number of instructions,
+    used variable names, and and types, which can be used during optimizatio.
+    """
     
     def __init__(self, body):
         assert isinstance(body, Expr) and body.kind == 'block'
         self._body = body
+        self._parent = None
         
         self._expressions = []
-        self._functions = []
+        self._functions = {}
         self.instructions = []
         
         self.names = {}
@@ -87,7 +106,13 @@ class BaseContext:
     
     def add_function(self, ctx):
         assert isinstance(ctx, FunctionContext)
-        self._functions.append(ctx)  # [ctx.name] = ctx
+        self._functions[ctx._name] = ctx  # [ctx.name] = ctx
+    
+    def _get_function(self, name):
+        fun = self._functions.get(name, None)
+        if fun is None and self._parent is not None:
+            fun = self._parent._get_function(name)
+        return fun
     
     # def get_function_idx(self, name):
     #     if name in self._functions:
@@ -101,9 +126,12 @@ class BaseContext:
         """
         
         # todo: this pass should also resolve imports and globals
+        # todo: count expressions here?
         
         if expr.kind == 'func':
             raise NotImplementedError()
+        elif expr.kind == 'return':
+            self._ret_count += 1  # todo: also set type?
         elif expr.kind == 'block':
             new_expressions = []
             for sub_expr in expr.args:
@@ -119,6 +147,33 @@ class BaseContext:
             for sub_expr in expr.args:
                 self._collect_functions(sub_expr)
     
+    def optimize_inline(self):
+        self._optimize_inline(self._body)
+    
+    def _optimize_inline(self, expr):
+        for i, subexpr in enumerate(expr.args):
+            if subexpr.kind == 'call':
+                funcname = subexpr.args[0].value
+                fun = self._get_function(funcname)
+                if fun is not None:
+                    if fun._depth < 16 and fun._ret_count == 1:
+                        call_args = subexpr.args[1:]  # should these be wrapped in a tuple?
+                        func_args = fun._expr.args[0].args  # identifiers
+                        # "bind" call to function signature
+                        replacements = {}
+                        t = subexpr.token
+                        block = Expr('inline', t)
+                        for call_arg, func_arg in zip(call_args, func_args):
+                            assert func_arg.kind == 'identifier'
+                            if call_arg.kind == 'identifier':
+                                replacements[func_arg.value] = call_arg.value
+                            else:
+                                block.args.append(Expr('assign', t, func_arg.copy('$'), call_arg))
+                        block.args.extend(fun._body.copy('$', replacements).args)
+                        expr.args.pop(i)
+                        expr.args.insert(i, block)
+            self._optimize_inline(subexpr)
+
     def compile(self):
         for expr in self._body.args:
             _compile_expr(expr, self, False)
@@ -149,7 +204,7 @@ class ModuleContext(BaseContext):
         all_functions = [self]
         while len(contexts) > 0:
             ctx = contexts.pop(0)
-            for sub in ctx._functions:
+            for sub in ctx._functions.values():
                 contexts.append(sub)
                 all_functions.append(sub)
                 sub._idx = count
@@ -187,23 +242,26 @@ class FunctionContext(BaseContext):
         assert isinstance(parent, BaseContext)
         assert expr.kind == 'func'
         super().__init__(expr.args[1])
-        
+        self._expr = expr
         self._parent = parent  # parent context
-        self._name = expr.token.text
-
+        self._name = expr.token.text  # not expr.value as identifier
+    
         # Init index, is set by the module
         self._idx = -1
         
         # Init return type
         self._ret_types = None
+        self._ret_count = 0
         
         # Process args
         self._arg_types = []
         for arg in expr.args[0].args:
-            self.name_idx(arg)
+            self.name_idx(arg.value)
             self._arg_types.append('f64')
         
         self._collect_functions(self._body)
+        
+        self._depth = self._count_depth(self._body.args) - len(self._arg_types)
 
     def set_return_type(self, ret_types):
         # todo: we should check the rt of every branch
@@ -227,15 +285,23 @@ class FunctionContext(BaseContext):
         locals = ['f64' for i in self.names]
         
         return wf.Function(self._name, arg_types, ret_types, locals, self.instructions)
+    
+    def _count_depth(self, exprs):
+        count = 0
+        for expr in exprs:
+            assert isinstance(expr, Expr)
+            count += 1
+            count += self._count_depth(expr.args)
+        return count
+    
 
-
-def _compile_expr(expr, ctx, push_stack=True):
+def _compile_expr(expr, ctx, push_stack=True, drop_return=False):
     """ Compile a single expression.
     """
     if expr.kind == 'assign':
         # Get name index to store value
         assert expr.args[0].kind == 'identifier'
-        name = expr.args[0].token.text
+        name = expr.args[0].value
         name_idx = ctx.name_idx(name)
         # Compute value
         _compile_expr(expr.args[1], ctx, True)
@@ -249,11 +315,12 @@ def _compile_expr(expr, ctx, push_stack=True):
         _compile_call(expr, ctx, push_stack)
     
     elif expr.kind == 'identifier':
-        name = expr.token.text
+        name = expr.value
         ctx.instructions.append(('get_local', ctx.names[name]))
     
     elif expr.kind == 'literal':
-        value = float(expr.token.text)
+        value = expr.value
+        assert isinstance(value, float)  # todo: also str/int?
         ctx.instructions.append(('f64.const', value))
     
     elif expr.kind == 'if':
@@ -332,12 +399,18 @@ def _compile_expr(expr, ctx, push_stack=True):
     elif expr.kind == 'func':
         assert False, 'We have collected func nodes'
     
+    elif expr.kind == 'inline':
+        for e in expr.args:
+            _compile_expr(e, ctx, False, drop_return=True)
+    
     elif expr.kind == 'return':
         assert len(expr.args) == 1, 'The WASM v1 only supports 1 output arg'
         for ret_arg in expr.args:
             _compile_expr(ret_arg, ctx, True)
-        ctx.instructions.append(('return', ))
-        ctx.set_return_type(['f64' for name in expr.args])
+        if not drop_return:
+            ctx.instructions.append(('return', ))
+            ctx.set_return_type(['f64' for name in expr.args])
+    
     else:
         raise RuntimeError('Unknown expression kind %r' % expr.kind)
 
@@ -350,14 +423,14 @@ def _compile_call(expr, ctx, push_stack=True):
     in the defined functions as well.
     """
     assert expr.args[0].kind == 'identifier'
-    name = expr.args[0].token.text
+    name = expr.args[0].value
     nargs = len(expr.args) - 1  # subtract name of fuction
     
     if name.startswith('@@'):
         # Compiler instruction
         if not name.startswith('@@wasm.'):
             raise ZoofCompilerError('Zoon compiler instructions currenly only start with "wasm."')
-        args = [ctx.names[arg.token.text] if arg.kind == 'identifier' else float(arg.token.text) for arg in expr.args[1:]]
+        args = [ctx.names[arg.value] if arg.kind == 'identifier' else arg.value for arg in expr.args[1:]]
         ii = [(name[7:], ) + tuple(args)]
         # never drop
     
@@ -381,56 +454,11 @@ def _compile_call(expr, ctx, push_stack=True):
     ctx.instructions.extend(ii)
 
 
-STD = """
 
-func sub1(a) {
-    @@wasm.f64.const(0.0)
-    @@wasm.get_local(a)
-    return @@wasm.f64.sub()
-}
-func sub(a, b) {
-    @@wasm.get_local(a)
-    @@wasm.get_local(b)
-    return @@wasm.f64.sub()
-}
-func add(a, b) {
-    @@wasm.get_local(a)
-    @@wasm.get_local(b)
-    return @@wasm.f64.add()
-}
-func lt(a, b) {
-    @@wasm.get_local(a)
-    @@wasm.get_local(b)
-    return @@wasm.f64.lt()
-}
-func le(a, b) {
-    @@wasm.get_local(a)
-    @@wasm.get_local(b)
-    return @@wasm.f64.le()
-}
-func eq(a, b) {
-    @@wasm.get_local(a)
-    @@wasm.get_local(b)
-    return @@wasm.f64.eq()
-}
-func div(a, b) {
-    @@wasm.get_local(a)
-    @@wasm.get_local(b)
-    return @@wasm.f64.div()
-}
-func mul(a, b) {
-    @@wasm.get_local(a)
-    @@wasm.get_local(b)
-    return @@wasm.f64.mul()
-}
-func mod(a, b) {
-    @@wasm.get_local(a)
-    @@wasm.get_local(b)
-    @@wasm.get_local(a)
-    @@wasm.get_local(b)
-    @@wasm.f64.div()
-    @@wasm.f64.floor()
-    @@wasm.f64.mul()
-    return @@wasm.f64.sub()
-}
-"""
+if __name__ == '__main__':
+    CODE = """print(1 + 2)
+    """
+    
+    tree = parse(tokenize(STD + CODE))
+    m = ModuleContext(tree)
+    

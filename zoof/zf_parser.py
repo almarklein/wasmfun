@@ -72,6 +72,7 @@ class Expr:
              'identifier', 'literal',  # or a literal for each kind?
              'index', # or subscript?
              'bracethingy',  # group or tuple, not known at creation time
+             'inline', # special "block" node for the compiler
              ]
     
     def __init__(self, kind, token, *args):
@@ -79,12 +80,41 @@ class Expr:
         self.kind = kind
         self.token = token
         self.args = list(args)
+        # For identifier names and literal values
+        self.value = None
+        # For type inference
+        self.type = None
+        
+        if kind == 'identifier':
+            self.value = token.text  # the name
+        for arg in self.args:
+            assert isinstance(arg, Expr)
     
     def __repr__(self):
         if len(self.args) == 0:
-            return '<Expr %s: %r>' % (self.kind, self.token.text)
+            valstr = '' if self.value is None else ': ' + str(self.value)
+            return '<Expr %s: %r%s>' % (self.kind, self.token.text, valstr)
         else:
             return '<Expr %s with %i args>' % (self.kind, len(self.args))
+    
+    def copy(self, prefix='', replacements=None):
+        """ Copy the expression, so that a part of a tree can be used
+        in different places, with different names or types attached.
+        """
+        if replacements is None:
+            replacements = {}
+        expr = Expr(self.kind, self.token, *[e.copy(prefix, replacements) for e in self.args])
+        expr.type = self.type
+        if self.kind == 'identifier':
+            if expr.value.startswith('@'):
+                pass  # todo: maybe just use a different expr for compiler instructions
+            elif expr.value in replacements:
+                expr.value = replacements[expr.value]
+            else:
+                expr.value = prefix + self.value
+        else:
+            expr.value = self.value
+        return expr
     
     def show(self, indent=0):
         print('    ' * indent + repr(self))
@@ -140,8 +170,9 @@ def _resolve_expressions(expression_chain):
                     chain = [e] + chain[2:]
                     i += 1
                 elif (funcname in multiops and chain[i-1].kind == 'call' and
-                      chain[i-1].args[0].kind == 'identifier' and chain[i-1].args[0].token.text == funcname):
+                      chain[i-1].args[0].kind == 'identifier' and chain[i-1].args[0].value == funcname):
                     # binary +
+                    assert isinstance(chain[i+1], Expr)
                     chain[i-1].args.append(chain[i+1])
                     chain = chain[:i] + chain[i+2:]
                     i + 1
@@ -492,7 +523,7 @@ class ZoofParser(RecursiveDescentParser):
         self.exp.args.append(arg_expr)
         assert self.consume(TYPES.bracket).text == '('
         while self.peak == TYPES.identifier:
-            arg_expr.args.append(self.consume(TYPES.identifier).text)
+            arg_expr.args.append(Expr('identifier', self.consume(TYPES.identifier)))
             if self.peak == TYPES.sep:
                 self.consume(TYPES.sep)
                 continue
@@ -568,19 +599,28 @@ class ZoofParser(RecursiveDescentParser):
         token = self.consume()  # number or string
         if self.pending and isinstance(self.pending[-1], Expr):
             raise ZoofSyntaxError(token, 'Unexpected %s literal' % token.type)
-        self.pending.append(Expr('literal', token))
+        e = Expr('literal', token)
+        if token.type == 'number':
+            e.value = float(token.text)
+        elif token.type == 'string':
+            e.value = token.text
+        else:
+            assert False, 'Unknown literal %s' % token.type
+        self.pending.append(e)
     
     def handle_identifier(self):  # aka names/labels/symbols/identifiers
         token = self.consume(TYPES.identifier) 
         if self.pending and isinstance(self.pending[-1], Expr):
             raise ZoofSyntaxError(token, 'Unexpected identifier')
-        self.pending.append(Expr('identifier', token))
+        e = Expr('identifier', token)
+        self.pending.append(e)
     
     def handle_instr(self):  # a function call representing a compiler instruction
         token = self.consume(TYPES.instr)
         if self.pending and isinstance(self.pending[-1], Expr):
             raise ZoofSyntaxError(token, 'Unexpected compiler instruction')
-        self.pending.append(Expr('identifier', token))  # we encode it as an identifier
+        e = Expr('identifier', token)  # we encode it as an identifier
+        self.pending.append(e)
     
     def handle_assign(self):
         token = self.consume(TYPES.assign) 
